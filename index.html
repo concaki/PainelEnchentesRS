@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nível dos Rios - Painel</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: linear-gradient(to bottom, #e0f7fa, #ffffff);
+      color: #003b4f;
+    }
+
+    h1 {
+      text-align: center;
+      color: #0077b6;
+      margin-bottom: 1rem;
+    }
+
+    .cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
+      width: 280px;
+      max-width: 100%;
+      text-align: left;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      font-size: 1.2rem;
+    }
+
+    .tendencia-up {
+      color: red;
+      font-weight: bold;
+    }
+
+    .tendencia-down {
+      color: green;
+      font-weight: bold;
+    }
+
+    .erro {
+      text-align: center;
+      margin-top: 1rem;
+      color: red;
+    }
+
+    .alertas-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .alerta-inmet {
+      background: #fde68a;
+      color: #92400e;
+      border-left: 6px solid #f59e0b;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 300px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center; color: #0077b6;">🚨 Alertas INMET</h1>
+  <div id="alertas" class="alertas-container"></div>
+  <script>
+    async function carregarAlertasINMET() {
+      try {
+        const res = await fetch("https://apiprevmet3.inmet.gov.br/avisos/ativos");
+        if (!res.ok) throw new Error("Erro na resposta da API INMET");
+        const data = await res.json();
+        const container = document.getElementById("alertas");
+        container.innerHTML = '';
+
+        const alertas = [...(data.hoje || []), ...(data.futuro || [])];
+        const rsAlertas = alertas.filter(a => a.geocodes && a.geocodes.includes('4314803'));
+
+        if (!rsAlertas.length) {
+          container.innerHTML = '<div class="alerta-inmet">Nenhum alerta ativo disponível.</div>';
+          return;
+        }
+
+        rsAlertas.forEach(alerta => {
+          const tipo = alerta.descricao || "Tipo não informado";
+          const severidade = alerta.severidade || "N/A";
+          const fim = alerta.fim ? new Date(alerta.fim).toLocaleString("pt-BR") : "Data não disponível";
+
+          const div = document.createElement("div");
+          div.className = "alerta-inmet";
+          div.innerHTML = `
+            <strong>🚨 ${tipo}</strong><br>
+            Severidade: <strong>${severidade}</strong><br>
+            Válido até: <strong>${fim}</strong><br>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Erro ao buscar alertas INMET:", err);
+        document.getElementById("alertas").innerHTML = '<div class="alerta-inmet">Erro ao buscar alertas da INMET.</div>';
+      }
+    }
+
+    carregarAlertasINMET();
+  </script>
+
+  <h1>🌊 Nível dos Rios</h1>
+  <div id="cards" class="cards-container"></div>
+
+  <section>
+    <h1 style="text-align: center; color: #0077b6; margin-top: 3rem;">📡 Imagens do Radar</h1>
+    <div style="display: flex; justify-content: center;">
+      <iframe src="https://radar-poa-13561874921.us-east1.run.app/" width="100%" height="600" style="border: none; max-width: 1200px;"></iframe>
+    </div>
+  </section>
+
+  <section>
+    <h1 style="text-align: center; color: #0077b6; margin-top: 3rem;">🌦️ Previsão do Tempo</h1>
+    <div id="ww_0481786a4d92f" v='1.3' loc='auto' a='{"t":"responsive","lang":"pt","sl_lpl":1,"ids":[],"font":"Arial","sl_ics":"one_a","sl_sot":"celsius","cl_bkg":"image","cl_font":"#FFFFFF","cl_cloud":"#FFFFFF","cl_persp":"#81D4FA","cl_sun":"#FFC107","cl_moon":"#FFC107","cl_thund":"#FF5722"}'>Mais previsões: <a href="https://oneweather.org/pt/lisbon/25_days/" id="ww_0481786a4d92f_u" target="_blank">Meteorologia 25 dias</a></div><script async src="https://app3.weatherwidget.org/js/?id=ww_0481786a4d92f"></script>
+  </section>
+
+  <div class="erro" id="mensagem-erro" style="display: none;">Erro ao carregar os dados.</div>
+
+  <footer>
+    Desenvolvido por PU3CKD - Copyright Todos os Direitos Reservados - 2025
+  </footer>
+
+  <script>
+    const estacoes = [
+      { nome: "Lago Guaíba", id: "87444000", local: "Usina do Gasômetro", cota: 3.60 },
+      { nome: "Rio dos Sinos", id: "87382000", local: "São Leopoldo", cota: 4.50 },
+      { nome: "Rio Caí", id: "86510000", local: "São Sebastião do Caí", cota: 10.00 },
+      { nome: "Rio Caí", id: "87165001", local: "Feliz", cota: 9.00 },
+      { nome: "Rio Paranhana", id: "87376000", local: "Taquara", cota: 5.00 },
+      { nome: "Rio Gravataí", id: "87399000", local: "Gravataí", cota: 4.75 },
+      { nome: "Rio Alto Taquari", id: "86510000", local: "Muçum", cota: 18.00 },
+      { nome: "Rio Taquari", id: "86879300", local: "Lajeado", cota: 19.00 },
+      { nome: "Rio Jacuí", id: "85400000", local: "Dona Francisca", cota: 7.50 },
+      { nome: "Lagoa dos Patos", id: "87980000", local: "Rio Grande", cota: 1.90 },
+      { nome: "Lagoa dos Patos", id: "87401750", local: "Alvorada", cota: 0.00 },
+      { nome: "Lagoa dos Patos", id: "87270000", local: "Montenegro", cota: 0.00 }
+    ];
+
+    async function fetchDados(estacao) {
+      try {
+        const [resMapa, res24h] = await Promise.all([
+          fetch(`https://ows.snirh.gov.br/ords/servicos/hidro/mapa/${estacao.id}`),
+          fetch(`https://ows.snirh.gov.br/ords/servicos/hidro/estacao/24h/${estacao.id}`)
+        ]);
+
+        if (!resMapa.ok || !res24h.ok) {
+          throw new Error('Falha na resposta da API');
+        }
+
+        const dadosMapa = await resMapa.json();
+        const dados24h = await res24h.json();
+
+        const itemMapa = dadosMapa?.items?.[0] || {};
+        const item24 = dados24h?.items?.[1] || {};
+
+        const nivelAtual = parseFloat(itemMapa.nivel_ult);
+        const nivelAnterior = parseFloat(item24.nivel);
+
+        let tendencia = '';
+        if (!isNaN(nivelAtual) && !isNaN(nivelAnterior)) {
+          if (nivelAtual > nivelAnterior) tendencia = '▲';
+          else if (nivelAtual < nivelAnterior) tendencia = '▼';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${estacao.nome} ${tendencia === '▲' ? '<span class="tendencia-up">▲</span>' : (tendencia === '▼' ? '<span class="tendencia-down">▼</span>' : '')}</h3>
+          <p>📍 Local: ${estacao.local}</p>
+          <p>📊 Nível Atual: ${!isNaN(nivelAtual) ? (nivelAtual / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
+          <p>📏 Cota de Inundação: ${estacao.cota.toFixed(2)} m</p>
+          <p>💧 Chuva: ${itemMapa.chuva_ult !== null && itemMapa.chuva_ult !== undefined ? itemMapa.chuva_ult : 'Não disponível'} mm</p>
+          <p>📖 Leitura Anterior: ${!isNaN(nivelAnterior) ? (nivelAnterior / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
+          <p>⏰ Data e Hora: ${item24.data ? new Date(item24.data).toLocaleString('pt-BR', { timeZone: 'UTC' }) : 'Não disponível'}</p>
+        `;
+        return card;
+      } catch (error) {
+        console.error('Erro ao carregar dados da estação', estacao.nome, error);
+        const fallback = document.createElement('div');
+        fallback.className = 'card';
+        fallback.innerHTML = `
+          <h3>${estacao.nome}</h3>
+          <p>📍 Local: ${estacao.local}</p>
+          <p><em>Não foi possível carregar os dados desta estação.</em></p>
+        `;
+        return fallback;
+      }
+    }
+
+    (async () => {
+      const cardsContainer = document.getElementById('cards');
+      try {
+        const cards = await Promise.all(estacoes.map(fetchDados));
+        cards.forEach(card => cardsContainer.appendChild(card));
+      } catch (error) {
+        console.error('Erro ao carregar cards:', error);
+        document.getElementById('mensagem-erro').style.display = 'block';
+      }
+    })();
+  </script>
+</body>
+</html>
