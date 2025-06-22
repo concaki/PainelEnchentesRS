@@ -164,6 +164,32 @@
       { nome: "Rio das Antas", id: "86450500", local: "Veranópolis", cota: 149.00 }
     ];
 
+    async function getClima(lat, lon) {
+      const apiKey = '6492a3173845934a32cddb310765f0eb';
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=pt`;
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        console.log("Retorno da API OpenWeatherMap:", json);
+
+        if (!json.main || !json.wind || !json.weather) {
+          console.warn("Resposta da API incompleta ou inválida para lat:", lat, "lon:", lon);
+          return null;
+        }
+
+        return {
+          temperatura: json.main.temp,
+          umidade: json.main.humidity,
+          pressao: json.main.pressure,
+          ventoVel: (json.wind.speed * 3.6).toFixed(1),
+          ventoDir: json.wind.deg
+        };
+      } catch (err) {
+        console.error("Erro ao buscar clima:", err);
+        return null;
+      }
+    }
+
     async function fetchDados(estacao) {
       try {
         const [resMapa, res24h] = await Promise.all([
@@ -190,6 +216,14 @@
           else if (nivelAtual < nivelAnterior) tendencia = '▼';
         }
 
+        console.log("Lat/Lon para clima:", itemMapa.latitude, itemMapa.longitude);
+        let clima = null;
+        if (itemMapa.latitude && itemMapa.longitude) {
+          clima = await getClima(itemMapa.latitude, itemMapa.longitude);
+        } else {
+          console.warn(`Latitude ou longitude inválida para estação: ${estacao.nome}`);
+        }
+
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
@@ -200,6 +234,10 @@
           <p>💧 Chuva: ${itemMapa.chuva_ult !== null && itemMapa.chuva_ult !== undefined ? itemMapa.chuva_ult : 'Não disponível'} mm</p>
           <p>📖 Leitura Anterior: ${!isNaN(nivelAnterior) ? (nivelAnterior / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
           <p>⏰ Data e Hora: ${item24.data ? new Date(item24.data).toLocaleString('pt-BR', { timeZone: 'UTC' }) : 'Não disponível'}</p>
+          ${clima ? `<p>🌡️ Temperatura: ${clima.temperatura} °C</p>
+<p>💧 Umidade: ${clima.umidade}%</p>
+<p>🔽 Pressão: ${clima.pressao} hPa</p>
+<p>🌬️ Vento: ${clima.ventoVel} km/h (${getDirecaoVento(clima.ventoDir)})</p>` : ''}
         `;
         return card;
       } catch (error) {
@@ -225,6 +263,12 @@
         document.getElementById('mensagem-erro').style.display = 'block';
       }
     })();
-  </script>
+  function getDirecaoVento(deg) {
+  if (deg === null || deg === undefined) return "";
+  const direcoes = ["N", "NNE", "NE", "ENE", "L", "LSE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+  const index = Math.round(deg / 22.5) % 16;
+  return direcoes[index];
+}
+</script>
 </body>
 </html>
