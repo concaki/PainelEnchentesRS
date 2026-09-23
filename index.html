@@ -75,6 +75,27 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
+    .card.carregando {
+      opacity: 0.6;
+    }
+
+    .card.falha {
+      border-left: 4px solid #d62828;
+    }
+
+    .alerta-inmet small {
+      display: block;
+      margin-top: 0.4rem;
+      opacity: 0.85;
+    }
+
+    .atualizacao {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+      margin: -0.5rem 0 1rem;
+    }
+
     footer {
       text-align: center;
       margin-top: 3rem;
@@ -87,39 +108,91 @@
   <h1 style="text-align: center; color: #0077b6;">🚨 Alertas INMET</h1>
   <div id="alertas" class="alertas-container"></div>
   <script>
-    async function carregarAlertasINMET() {
+    // Escapa texto vindo de APIs antes de inserir com innerHTML (evita XSS)
+    function escapeHtml(valor) {
+      return String(valor ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // fetch com tempo limite, para uma API lenta não travar o painel
+    async function fetchComTimeout(url, ms = 15000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ms);
       try {
-        const res = await fetch("https://apiprevmet3.inmet.gov.br/avisos/ativos");
+        return await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    const IBGE_PORTO_ALEGRE = "4314902";
+
+    // O campo geocodes pode vir como texto separado por vírgulas ou como lista
+    function listaGeocodes(alerta) {
+      const g = alerta.geocodes;
+      if (!g) return [];
+      if (Array.isArray(g)) return g.map(String);
+      return String(g).split(",").map(s => s.trim()).filter(Boolean);
+    }
+
+    async function carregarAlertasINMET() {
+      const container = document.getElementById("alertas");
+      try {
+        const res = await fetchComTimeout("https://apiprevmet3.inmet.gov.br/avisos/ativos");
         if (!res.ok) throw new Error("Erro na resposta da API INMET");
         const data = await res.json();
-        const container = document.getElementById("alertas");
-        container.innerHTML = '';
 
-        const alertas = [...(data.hoje || []), ...(data.futuro || [])];
-        const rsAlertas = alertas.filter(a => a.geocodes && a.geocodes.includes('4314803'));
+        // Junta hoje + futuro e remove duplicados (o mesmo aviso pode aparecer nas duas listas)
+        const vistos = new Set();
+        const alertas = [...(data.hoje || []), ...(data.futuro || [])].filter(a => {
+          const chave = a.id ?? `${a.descricao}|${a.inicio}|${a.fim}`;
+          if (vistos.has(chave)) return false;
+          vistos.add(chave);
+          return true;
+        });
+
+        // Códigos IBGE de municípios do RS começam com "43"
+        const rsAlertas = alertas
+          .map(a => {
+            const codigos = listaGeocodes(a);
+            const municipiosRS = codigos.filter(c => c.startsWith("43"));
+            return { ...a, municipiosRS, incluiPOA: codigos.includes(IBGE_PORTO_ALEGRE) };
+          })
+          .filter(a => a.municipiosRS.length > 0)
+          // Alertas que incluem Porto Alegre aparecem primeiro
+          .sort((a, b) => Number(b.incluiPOA) - Number(a.incluiPOA));
+
+        container.innerHTML = "";
 
         if (!rsAlertas.length) {
-          container.innerHTML = '<div class="alerta-inmet">Nenhum alerta ativo disponível.</div>';
+          container.innerHTML = '<div class="alerta-inmet">Nenhum alerta ativo para o RS no momento.</div>';
           return;
         }
 
         rsAlertas.forEach(alerta => {
           const tipo = alerta.descricao || "Tipo não informado";
           const severidade = alerta.severidade || "N/A";
-          const fim = alerta.fim ? new Date(alerta.fim).toLocaleString("pt-BR") : "Data não disponível";
+          const inicio = alerta.inicio ? new Date(alerta.inicio).toLocaleString("pt-BR") : null;
+          const fimAlerta = alerta.fim ? new Date(alerta.fim).toLocaleString("pt-BR") : "Data não disponível";
 
           const div = document.createElement("div");
           div.className = "alerta-inmet";
           div.innerHTML = `
-            <strong>🚨 ${tipo}</strong><br>
-            Severidade: <strong>${severidade}</strong><br>
-            Válido até: <strong>${fim}</strong><br>
+            <strong>🚨 ${escapeHtml(tipo)}</strong><br>
+            Severidade: <strong>${escapeHtml(severidade)}</strong><br>
+            ${inicio ? `Início: <strong>${escapeHtml(inicio)}</strong><br>` : ""}
+            Válido até: <strong>${escapeHtml(fimAlerta)}</strong>
+            <small>${alerta.incluiPOA ? "📍 Inclui Porto Alegre · " : ""}${alerta.municipiosRS.length} município(s) do RS</small>
           `;
           container.appendChild(div);
         });
       } catch (err) {
         console.error("Erro ao buscar alertas INMET:", err);
-        document.getElementById("alertas").innerHTML = '<div class="alerta-inmet">Erro ao buscar alertas da INMET.</div>';
+        container.innerHTML = '<div class="alerta-inmet">Não foi possível buscar os alertas do INMET agora. Consulte <a href="https://alertas2.inmet.gov.br" target="_blank" rel="noopener">alertas2.inmet.gov.br</a>.</div>';
       }
     }
 
@@ -127,6 +200,8 @@
   </script>
 
   <h1>🌊 Nível dos Rios</h1>
+  <p class="atualizacao" id="ultima-atualizacao">Carregando dados das estações…</p>
+  <div class="erro" id="mensagem-erro" style="display: none;">Não foi possível carregar os dados das estações. Tentaremos novamente em instantes.</div>
   <div id="cards" class="cards-container"></div>
 
   <section>
@@ -138,21 +213,26 @@
 
   <section>
     <h1 style="text-align: center; color: #0077b6; margin-top: 3rem;">🌦️ Previsão do Tempo</h1>
+    <!-- ATENÇÃO: o link "Meteorologia 25 dias" abaixo aponta para Lisboa e é exigido pelo
+         weatherwidget.org (alterar à mão pode quebrar o widget). Para corrigir, gere um novo
+         widget em https://weatherwidget.org escolhendo Porto Alegre e cole o código aqui. -->
     <div id="ww_0481786a4d92f" v='1.3' loc='auto' a='{"t":"responsive","lang":"pt","sl_lpl":1,"ids":[],"font":"Arial","sl_ics":"one_a","sl_sot":"celsius","cl_bkg":"image","cl_font":"#FFFFFF","cl_cloud":"#FFFFFF","cl_persp":"#81D4FA","cl_sun":"#FFC107","cl_moon":"#FFC107","cl_thund":"#FF5722"}'>Mais previsões: <a href="https://oneweather.org/pt/lisbon/25_days/" id="ww_0481786a4d92f_u" target="_blank">Meteorologia 25 dias</a></div><script async src="https://app3.weatherwidget.org/js/?id=ww_0481786a4d92f"></script>
   </section>
-
-  <div class="erro" id="mensagem-erro" style="display: none;">Erro ao carregar os dados.</div>
 
   <footer>
     Desenvolvido por PU3CKD - Copyright Todos os Direitos Reservados - 2025
   </footer>
 
   <script>
+    // cota: cota de inundação em metros. null = sem cota oficial definida para a estação.
+    // Conferidas com nivelguaiba.com.br: São Leopoldo, Feliz, Gravataí, Muçum, Lajeado e Dona Francisca.
+    // A CONFERIR: Gasômetro (fontes divergem entre 2,60 m e 3,60 m conforme a régua) e
+    // Taquara (fontes citam 6,00 m e 7,00 m, possivelmente estações diferentes).
     const estacoes = [
       { nome: "Lago Guaíba", id: "87450020", local: "Usina do Gasômetro", cota: 3.60 },
-      { nome: "Lago Guaíba", id: "87460120", local: "Ipanema", cota: 0.00 },
-      { nome: "Lago Guaíba", id: "87242000", local: "Guaiba (Catamaran)", cota: 0.00 },
-      { nome: "Lagoa dos Patos", id: "3051077", local: "Pq.Itapuâ (Viamão)", cota: 0.00 },
+      { nome: "Lago Guaíba", id: "87460120", local: "Ipanema", cota: null },
+      { nome: "Lago Guaíba", id: "87242000", local: "Guaiba (Catamaran)", cota: null },
+      { nome: "Lagoa dos Patos", id: "3051077", local: "Pq.Itapuâ (Viamão)", cota: null },
       { nome: "Rio dos Sinos", id: "87382000", local: "São Leopoldo", cota: 4.50 },
       { nome: "Rio Caí", id: "86510000", local: "São Sebastião do Caí", cota: 10.00 },
       { nome: "Rio Caí", id: "87165001", local: "Feliz", cota: 9.00 },
@@ -162,18 +242,19 @@
       { nome: "Rio Taquari", id: "86879300", local: "Lajeado", cota: 19.00 },
       { nome: "Rio Jacuí", id: "85400000", local: "Dona Francisca", cota: 7.50 },
       { nome: "Lagoa dos Patos", id: "87980000", local: "Rio Grande", cota: 1.90 },
-      { nome: "Lagoa dos Patos", id: "87401750", local: "Alvorada", cota: 0.00 },
-      { nome: "Lagoa dos Patos", id: "87270000", local: "Montenegro", cota: 0.00 },
+      { nome: "Lagoa dos Patos", id: "87401750", local: "Alvorada", cota: null },
+      { nome: "Lagoa dos Patos", id: "87270000", local: "Montenegro", cota: null },
       { nome: "Rio das Antas", id: "86450500", local: "Veranópolis", cota: 149.00 }
     ];
+
+    const INTERVALO_ATUALIZACAO_MS = 15 * 60 * 1000; // 15 minutos
 
     async function getClima(lat, lon) {
       const apiKey = '6492a3173845934a32cddb310765f0eb';
       const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=pt`;
       try {
-        const res = await fetch(url);
+        const res = await fetchComTimeout(url);
         const json = await res.json();
-        console.log("Retorno da API OpenWeatherMap:", json);
 
         if (!json.main || !json.wind || !json.weather) {
           console.warn("Resposta da API incompleta ou inválida para lat:", lat, "lon:", lon);
@@ -193,15 +274,31 @@
       }
     }
 
+    function montarCard(estacao, conteudoHtml, classeExtra = "") {
+      const card = document.createElement('div');
+      card.className = `card ${classeExtra}`.trim();
+      card.innerHTML = conteudoHtml;
+      return card;
+    }
+
+    function cardCarregando(estacao) {
+      return montarCard(estacao, `
+        <h3>${escapeHtml(estacao.nome)}</h3>
+        <p>📍 Local: ${escapeHtml(estacao.local)}</p>
+        <p><em>Carregando…</em></p>
+      `, "carregando");
+    }
+
+    // Retorna { card, ok } — ok = false quando a estação falhou
     async function fetchDados(estacao) {
       try {
         const [resMapa, res24h] = await Promise.all([
-          fetch(`https://ows.snirh.gov.br/ords/servicos/hidro/mapa/${estacao.id}`),
-          fetch(`https://ows.snirh.gov.br/ords/servicos/hidro/estacao/24h/${estacao.id}`)
+          fetchComTimeout(`https://ows.snirh.gov.br/ords/servicos/hidro/mapa/${estacao.id}`),
+          fetchComTimeout(`https://ows.snirh.gov.br/ords/servicos/hidro/estacao/24h/${estacao.id}`)
         ]);
 
         if (!resMapa.ok || !res24h.ok) {
-          throw new Error('Falha na resposta da API');
+          throw new Error(`Falha na resposta da API (${resMapa.status}/${res24h.status})`);
         }
 
         const dadosMapa = await resMapa.json();
@@ -219,53 +316,94 @@
           else if (nivelAtual < nivelAnterior) tendencia = '▼';
         }
 
-        console.log("Lat/Lon para clima:", itemMapa.latitude, itemMapa.longitude);
         let clima = null;
         if (itemMapa.latitude && itemMapa.longitude) {
           clima = await getClima(itemMapa.latitude, itemMapa.longitude);
-        } else {
-          console.warn(`Latitude ou longitude inválida para estação: ${estacao.nome}`);
         }
 
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <h3>${estacao.nome} ${tendencia === '▲' ? '<span class="tendencia-up">▲</span>' : (tendencia === '▼' ? '<span class="tendencia-down">▼</span>' : '')}</h3>
-          <p>📍 Local: ${estacao.local}</p>
+        const temCota = typeof estacao.cota === "number";
+        const chuva = itemMapa.chuva_ult !== null && itemMapa.chuva_ult !== undefined
+          ? `${escapeHtml(itemMapa.chuva_ult)} mm` : 'Não disponível';
+
+        const card = montarCard(estacao, `
+          <h3>${escapeHtml(estacao.nome)} ${tendencia === '▲' ? '<span class="tendencia-up">▲</span>' : (tendencia === '▼' ? '<span class="tendencia-down">▼</span>' : '')}</h3>
+          <p>📍 Local: ${escapeHtml(estacao.local)}</p>
           <p>📊 Nível Atual: ${!isNaN(nivelAtual) ? (nivelAtual / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
-          <p>📏 Cota de Inundação: ${estacao.cota.toFixed(2)} m</p>
-          <p>💧 Chuva: ${itemMapa.chuva_ult !== null && itemMapa.chuva_ult !== undefined ? itemMapa.chuva_ult : 'Não disponível'} mm</p>
+          <p>📏 Cota de Inundação: ${temCota ? estacao.cota.toFixed(2) + ' m' : 'não definida'}</p>
+          <p>💧 Chuva: ${chuva}</p>
           <p>📖 Leitura Anterior: ${!isNaN(nivelAnterior) ? (nivelAnterior / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
-          <p>⏰ Data e Hora: ${item24.data ? new Date(item24.data).toLocaleString('pt-BR', { timeZone: 'UTC' }) : 'Não disponível'}</p>
-          ${clima ? `<p>🌡️ Temperatura: ${clima.temperatura} °C</p>
-<p>💧 Umidade: ${clima.umidade}%</p>
-<p>🔽 Pressão: ${clima.pressao} hPa</p>
-<p>🌬️ Vento: ${clima.ventoVel} km/h (${getDirecaoVento(clima.ventoDir)})</p>` : ''}
-        `;
-        return card;
+          <p>⏰ Data e Hora: ${item24.data ? escapeHtml(new Date(item24.data).toLocaleString('pt-BR', { timeZone: 'UTC' })) : 'Não disponível'}</p>
+          ${clima ? `<p>🌡️ Temperatura: ${escapeHtml(clima.temperatura)} °C</p>
+<p>💧 Umidade: ${escapeHtml(clima.umidade)}%</p>
+<p>🔽 Pressão: ${escapeHtml(clima.pressao)} hPa</p>
+<p>🌬️ Vento: ${escapeHtml(clima.ventoVel)} km/h (${getDirecaoVento(clima.ventoDir)})</p>` : ''}
+        `);
+        return { card, ok: true };
       } catch (error) {
-        console.error('Erro ao carregar dados da estação', estacao.nome, error);
-        const fallback = document.createElement('div');
-        fallback.className = 'card';
-        fallback.innerHTML = `
-          <h3>${estacao.nome}</h3>
-          <p>📍 Local: ${estacao.local}</p>
+        console.error('Erro ao carregar dados da estação', estacao.local, error);
+        const card = montarCard(estacao, `
+          <h3>${escapeHtml(estacao.nome)}</h3>
+          <p>📍 Local: ${escapeHtml(estacao.local)}</p>
           <p><em>Não foi possível carregar os dados desta estação.</em></p>
-        `;
-        return fallback;
+        `, "falha");
+        return { card, ok: false };
       }
     }
 
-    (async () => {
+    let atualizando = false;
+
+    async function carregarEstacoes() {
+      if (atualizando) return; // evita duas atualizações sobrepostas
+      atualizando = true;
+
       const cardsContainer = document.getElementById('cards');
-      try {
-        const cards = await Promise.all(estacoes.map(fetchDados));
-        cards.forEach(card => cardsContainer.appendChild(card));
-      } catch (error) {
-        console.error('Erro ao carregar cards:', error);
-        document.getElementById('mensagem-erro').style.display = 'block';
+      const msgErro = document.getElementById('mensagem-erro');
+      const msgAtualizacao = document.getElementById('ultima-atualizacao');
+
+      // Na primeira carga, mostra os cards com "Carregando…" na ordem certa.
+      // Nas atualizações seguintes, mantém os dados antigos até os novos chegarem.
+      if (!cardsContainer.children.length) {
+        estacoes.forEach(estacao => cardsContainer.appendChild(cardCarregando(estacao)));
       }
-    })();
+
+      // Cada card é substituído assim que sua estação responde (sem esperar as demais)
+      const resultados = await Promise.all(estacoes.map(async (estacao, i) => {
+        const { card, ok } = await fetchDados(estacao);
+        const antigo = cardsContainer.children[i];
+        if (antigo) cardsContainer.replaceChild(card, antigo);
+        else cardsContainer.appendChild(card);
+        return ok;
+      }));
+
+      const falhas = resultados.filter(ok => !ok).length;
+      msgErro.style.display = falhas === estacoes.length ? 'block' : 'none';
+
+      const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      msgAtualizacao.textContent = falhas && falhas < estacoes.length
+        ? `Atualizado às ${agora} · ${falhas} estação(ões) sem dados · atualiza a cada 15 min`
+        : `Atualizado às ${agora} · atualiza a cada 15 min`;
+
+      atualizando = false;
+    }
+
+    carregarEstacoes();
+
+    // Atualização automática de estações e alertas
+    setInterval(() => {
+      carregarEstacoes();
+      carregarAlertasINMET();
+    }, INTERVALO_ATUALIZACAO_MS);
+
+    // Ao voltar para a aba depois de muito tempo, atualiza na hora
+    let ultimaVisita = Date.now();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && Date.now() - ultimaVisita > INTERVALO_ATUALIZACAO_MS) {
+        carregarEstacoes();
+        carregarAlertasINMET();
+      }
+      ultimaVisita = Date.now();
+    });
+
   function getDirecaoVento(deg) {
   if (deg === null || deg === undefined) return "";
   const direcoes = ["N", "NNE", "NE", "ENE", "L", "LSE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
