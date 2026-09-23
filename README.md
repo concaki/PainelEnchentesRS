@@ -7,12 +7,16 @@ nível dos rios (ANA/SGB e rede da Defesa Civil RS), chuva acumulada e tempo ago
 
 ```
 index.html                    página do painel
-api/alertas-defesa-civil.js   alertas da IDAP (Defesa Civil Nacional, formato CAP), filtrados para o RS
+api/alertas-defesa-civil.js   alertas da Defesa Civil: site da Defesa Civil RS + IDAP (quando acessível)
+api/_alertas-site-rs.js       leitura dos alertas publicados no site da Defesa Civil RS
 api/alertas-inmet.js          avisos ativos do INMET, filtrados para o RS
 api/estacoes-dcrs.js          Rede Hidrometeorológica da Defesa Civil RS (API GraphQL)
 api/estacoes-ana.js           estações da ANA/SGB com cota de inundação
 api/_util.js                  funções compartilhadas (não vira rota)
-vercel.json                   funções rodando em São Paulo (gru1)
+sw.js                         service worker: painel abre sem sinal com os últimos dados
+manifest.webmanifest          permite instalar o painel na tela inicial do celular
+icone-*.png, apple-touch-icon.png   ícones do app
+vercel.json                   funções em São Paulo (gru1) e cabeçalhos do service worker
 package.json
 ```
 
