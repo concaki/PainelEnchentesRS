@@ -72,6 +72,7 @@
     .painel h3 small { font-weight: 400; color: var(--tinta-suave); font-size: 0.85rem; }
     .alerta { border-left: 5px solid var(--atencao); background: var(--atencao-fundo); border-radius: 6px; padding: 0.7rem 0.85rem; margin-bottom: 0.7rem; }
     .alerta.grave { border-left-color: var(--perigo); background: var(--perigo-fundo); }
+    .alerta.info { border-left-color: var(--agua); background: var(--agua-clara); }
     .alerta.leve { border-left-color: #c9a400; background: #fffbe0; }
     .alerta strong { display: block; }
     .alerta p { margin: 0.3rem 0 0; font-size: 0.93rem; }
@@ -308,7 +309,7 @@
     // ================= Alertas =================
     function classeSeveridade(sev) {
       const s = String(sev || "").toLowerCase();
-      if (/extrem|sever|grande perigo|^perigo$/.test(s)) return "grave";
+      if (/extrem|sever|grande perigo|^perigo$|muito alto/.test(s)) return "grave";
       if (/baixa|potencial|minor/.test(s)) return "leve";
       return "";
     }
@@ -322,14 +323,15 @@
       alvo.innerHTML = lista.map((a) => {
         const area = a.todoEstado ? "Todo o estado" : a.municipios.length
           ? `${a.municipios.slice(0, 8).map(esc).join(", ")}${a.totalMunicipios > 8 ? ` e mais ${a.totalMunicipios - 8}` : ""}`
-          : `${a.totalMunicipios} município(s)`;
+          : a.totalMunicipios ? `${a.totalMunicipios} município(s)` : "";
         return `
-          <div class="alerta ${classeSeveridade(a.severidade)}">
+          <div class="alerta ${a.evento === "Boletim" ? "info" : classeSeveridade(a.severidade)}">
             <strong>${a.incluiPOA ? '<span class="etiqueta">Porto Alegre</span>' : ""}${esc(a.evento || "Alerta")}${a.severidade ? ` · ${esc(a.severidade)}` : ""}</strong>
             <p>${esc(a.titulo || a.descricao)}</p>
-            <p class="meta">📍 ${area}</p>
+            ${area ? `<p class="meta">📍 ${area}</p>` : ""}
             <p class="meta">Emitido ${fmtData(a.enviado)}${a.expira ? ` · válido até ${fmtData(a.expira)}` : ""}${a.emissor ? ` · ${esc(a.emissor)}` : ""}</p>
             ${(a.descricao && a.descricao !== a.titulo) || a.instrucao ? `<details><summary>Detalhes e orientações</summary>${a.descricao && a.descricao !== a.titulo ? `<p>${esc(a.descricao)}</p>` : ""}${a.instrucao ? `<p><strong>O que fazer:</strong> ${esc(a.instrucao)}</p>` : ""}</details>` : ""}
+            ${a.origem === "site" && a.link ? `<p class="meta"><a href="${esc(a.link)}" target="_blank" rel="noopener">Ver publicação da Defesa Civil RS</a></p>` : ""}
           </div>`;
       }).join("");
     }
