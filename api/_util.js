@@ -82,3 +82,19 @@ export function numeroOuNulo(valor, limite = 10000) {
   if (!Number.isFinite(n) || Math.abs(n) > limite) return null; // descarta leituras de sensor com defeito
   return n;
 }
+
+// Converte entidades HTML (&ccedil;, &atilde;, &#231;, &#xE7;...) em caracteres
+const ENTIDADES = {
+  nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+  ordm: "º", ordf: "ª", deg: "°", ndash: "–", mdash: "—", hellip: "…",
+  laquo: "«", raquo: "»", ldquo: "“", rdquo: "”", lsquo: "‘", rsquo: "’", middot: "·", bull: "•",
+};
+const ACENTOS = { acute: "\u0301", grave: "\u0300", circ: "\u0302", tilde: "\u0303", uml: "\u0308", cedil: "\u0327" };
+
+export function decodificarEntidades(texto) {
+  return String(texto ?? "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&([a-zA-Z])(acute|grave|circ|tilde|uml|cedil);/g, (_, letra, acento) => (letra + ACENTOS[acento]).normalize("NFC"))
+    .replace(/&([a-zA-Z]+);/g, (orig, nome) => ENTIDADES[nome] ?? ENTIDADES[nome.toLowerCase()] ?? orig);
+}

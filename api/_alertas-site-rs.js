@@ -1,7 +1,7 @@
 // Alertas publicados no site da Defesa Civil do RS (defesacivil.rs.gov.br).
 // Todas as páginas do site trazem um bloco "Avisos e Alertas" com as publicações mais recentes;
 // o painel lê esse bloco e depois abre cada publicação para pegar descrição e validade.
-import { fetchComTimeout, IBGE_PORTO_ALEGRE } from "./_util.js";
+import { fetchComTimeout, decodificarEntidades, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const SITE = "https://www.defesacivil.rs.gov.br";
 const PAGINAS_LISTA = [`${SITE}/avisos-e-alertas`, `${SITE}/inicial`, `${SITE}/links-uteis-64d674c5112fe`];
@@ -10,9 +10,7 @@ const JANELA_BOLETIM_MS = 48 * 3600000; // boletins sem validade explícita vale
 
 const MESES = { janeiro: 1, fevereiro: 2, marco: 3, "março": 3, abril: 4, maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12 };
 
-const semTags = (s) => String(s ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ")
-  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&quot;/g, '"').replace(/&amp;/g, "&")
-  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+const semTags = (s) => decodificarEntidades(String(s ?? "").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 
 // Horário de Brasília (UTC-3, sem horário de verão)
 const dataBrasilia = (ano, mes, dia, h = 0, min = 0) => Date.UTC(ano, mes - 1, dia, h + 3, min);

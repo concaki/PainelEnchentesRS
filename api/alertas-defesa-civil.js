@@ -1,7 +1,7 @@
 // Alertas da Defesa Civil publicados na IDAP (Interface de Divulgação de Alertas Públicos - MIDR),
 // no formato CAP. São os mesmos alertas enviados por SMS 40199, WhatsApp, Telegram e Cell Broadcast.
 import { alertasDoSite } from "./_alertas-site-rs.js";
-import { fetchComTimeout, buscarTextoCompativel, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
+import { fetchComTimeout, buscarTextoCompativel, descreverErro, enviarJson, decodificarEntidades, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const FEED = "https://idapfile.mdr.gov.br/idap/api/rss/cap";
 // Plano B: diretório público com um arquivo CAP por alerta, nomeado <id><DDMMAAAA>-<UF>.xml
@@ -11,12 +11,7 @@ const DIAS_JANELA = 3;     // considera arquivos dos últimos N dias
 
 // ---- Leitura simples de XML (sem dependências), tolerante a prefixos como "cap:" ou "ns2:" ----
 const decodificar = (s) =>
-  String(s ?? "")
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
-    .trim();
+  decodificarEntidades(String(s ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).trim();
 
 function blocos(xml, tag) {
   const re = new RegExp(`<(?:[\\w-]+:)?${tag}\\b[^>]*>([\\s\\S]*?)</(?:[\\w-]+:)?${tag}>`, "gi");
