@@ -1,3 +1,6 @@
+import https from "node:https";
+import crypto from "node:crypto";
+
 // Funções compartilhadas pelas rotas /api (arquivos com "_" não viram rota na Vercel).
 
 // Alguns servidores do governo derrubam conexões sem User-Agent identificável.
@@ -24,10 +27,38 @@ export async function fetchComTimeout(url, opcoes = {}, ms = 20000, tentativas =
   throw ultimoErro;
 }
 
+// Busca texto via https nativo aceitando servidores com TLS antigo.
+// A verificação do certificado continua ativa; só se amplia a compatibilidade de protocolo e cifras.
+export function buscarTextoCompativel(url, ms = 25000, redirecionamentos = 3) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, {
+      headers: CABECALHOS_PADRAO,
+      minVersion: "TLSv1",
+      ciphers: "DEFAULT@SECLEVEL=0",
+      secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      timeout: ms,
+    }, (res) => {
+      const { statusCode, headers } = res;
+      if (statusCode >= 300 && statusCode < 400 && headers.location && redirecionamentos > 0) {
+        res.resume();
+        return resolve(buscarTextoCompativel(new URL(headers.location, url).toString(), ms, redirecionamentos - 1));
+      }
+      if (statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${statusCode}`)); }
+      res.setEncoding("utf8");
+      let dados = "";
+      res.on("data", (c) => { dados += c; });
+      res.on("end", () => resolve(dados));
+      res.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(Object.assign(new Error("tempo esgotado"), { name: "AbortError" })));
+    req.on("error", reject);
+  });
+}
+
 // "fetch failed" esconde o motivo real; ele fica em err.cause (DNS, certificado, conexão recusada...)
 export function descreverErro(err) {
   if (err?.name === "AbortError") return "tempo esgotado";
-  const causa = err?.cause;
+  const causa = err?.cause ?? (err?.code ? err : null);
   const detalhe = causa ? [causa.code, causa.message].filter(Boolean).join(": ") : "";
   return detalhe && detalhe !== err.message ? `${err.message} (${detalhe})` : String(err?.message ?? err);
 }

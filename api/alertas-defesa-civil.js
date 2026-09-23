@@ -1,8 +1,12 @@
 // Alertas da Defesa Civil publicados na IDAP (Interface de Divulgação de Alertas Públicos - MIDR),
 // no formato CAP. São os mesmos alertas enviados por SMS 40199, WhatsApp, Telegram e Cell Broadcast.
-import { fetchComTimeout, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
+import { fetchComTimeout, buscarTextoCompativel, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const FEED = "https://idapfile.mdr.gov.br/idap/api/rss/cap";
+// Plano B: diretório público com um arquivo CAP por alerta, nomeado <id><DDMMAAAA>-<UF>.xml
+const DIRETORIO_CAP = "https://idapcap.mdr.gov.br/";
+const MAX_ARQUIVOS = 40;   // alertas mais recentes do RS a baixar do diretório
+const DIAS_JANELA = 3;     // considera arquivos dos últimos N dias
 
 // ---- Leitura simples de XML (sem dependências), tolerante a prefixos como "cap:" ou "ns2:" ----
 const decodificar = (s) =>
@@ -96,14 +100,74 @@ export function interpretarAlertas(xml, agora = Date.now()) {
   );
 }
 
-export default async function handler(req, res) {
+// Lê a listagem do diretório e retorna os arquivos do RS dos últimos dias, do mais novo ao mais antigo
+export function arquivosRecentesRS(html, agora = Date.now()) {
+  const limite = agora - DIAS_JANELA * 86400000;
+  const nomes = new Set([...String(html).matchAll(/href="([^"]*?(\d+)-RS\.xml)"/gi)].map((m) => m[1]));
+  return [...nomes]
+    .map((nome) => {
+      const m = nome.match(/(\d+)(\d{2})(\d{2})(\d{4})-RS\.xml$/i);
+      if (!m) return null;
+      const [, id, dd, mm, aaaa] = m;
+      const data = Date.parse(`${aaaa}-${mm}-${dd}T23:59:59-03:00`);
+      return { nome, id: Number(id), data };
+    })
+    .filter((a) => a && a.data >= limite)
+    .sort((a, b) => b.id - a.id)
+    .slice(0, MAX_ARQUIVOS);
+}
+
+// Tenta primeiro o fetch padrão; se a conexão cair, tenta com TLS compatível
+async function baixarTexto(url, ms) {
   try {
-    const r = await fetchComTimeout(FEED, { headers: { Accept: "application/atom+xml, application/xml, text/xml" } }, 25000);
+    const r = await fetchComTimeout(url, { headers: { Accept: "application/atom+xml, application/xml, text/xml, text/html" } }, ms);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const alertas = interpretarAlertas(await r.text());
-    enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), alertas }, 120);
+    return await r.text();
   } catch (err) {
-    console.error(err);
-    enviarJson(res, 502, { erro: `Falha ao consultar a IDAP: ${descreverErro(err)}` });
+    if (/HTTP \d/.test(err.message)) throw err;
+    try {
+      return await buscarTextoCompativel(url, ms);
+    } catch (err2) {
+      throw new Error(`${descreverErro(err)} / TLS compatível: ${descreverErro(err2)}`);
+    }
   }
+}
+
+async function viaFeed() {
+  return interpretarAlertas(await baixarTexto(FEED, 25000));
+}
+
+async function viaDiretorio() {
+  const listagem = await baixarTexto(DIRETORIO_CAP, 25000);
+  const arquivos = arquivosRecentesRS(listagem);
+  const alertas = [];
+  for (let i = 0; i < arquivos.length; i += 5) {
+    const lote = await Promise.allSettled(
+      arquivos.slice(i, i + 5).map((a) => baixarTexto(new URL(a.nome, DIRETORIO_CAP).toString(), 15000))
+    );
+    for (const r of lote) if (r.status === "fulfilled") alertas.push(...interpretarAlertas(r.value));
+  }
+  // Reaplica a ordenação e a remoção de duplicados
+  const porId = new Map();
+  for (const a of alertas) {
+    const ant = porId.get(a.id);
+    if (!ant || String(a.enviado) > String(ant.enviado)) porId.set(a.id, a);
+  }
+  return [...porId.values()].sort(
+    (a, b) => Number(b.incluiPOA) - Number(a.incluiPOA) || a.ordemSeveridade - b.ordemSeveridade || String(b.enviado).localeCompare(String(a.enviado))
+  );
+}
+
+export default async function handler(req, res) {
+  const falhas = [];
+  for (const [fonte, buscar] of [["feed IDAP", viaFeed], ["diretório CAP", viaDiretorio]]) {
+    try {
+      const alertas = await buscar();
+      return enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), fonte, falhas, alertas }, 120);
+    } catch (err) {
+      console.error(`Falha em ${fonte}:`, err);
+      falhas.push(`${fonte}: ${descreverErro(err)}`);
+    }
+  }
+  enviarJson(res, 502, { erro: `Falha ao consultar a IDAP. ${falhas.join(" | ")}` });
 }
