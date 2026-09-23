@@ -1,5 +1,6 @@
 // Alertas da Defesa Civil publicados na IDAP (Interface de Divulgação de Alertas Públicos - MIDR),
 // no formato CAP. São os mesmos alertas enviados por SMS 40199, WhatsApp, Telegram e Cell Broadcast.
+import { alertasDoSite } from "./_alertas-site-rs.js";
 import { fetchComTimeout, buscarTextoCompativel, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const FEED = "https://idapfile.mdr.gov.br/idap/api/rss/cap";
@@ -158,16 +159,37 @@ async function viaDiretorio() {
   );
 }
 
-export default async function handler(req, res) {
+async function viaIdap() {
   const falhas = [];
   for (const [fonte, buscar] of [["feed IDAP", viaFeed], ["diretório CAP", viaDiretorio]]) {
     try {
-      const alertas = await buscar();
-      return enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), fonte, falhas, alertas }, 120);
+      return { alertas: await buscar(), falhas };
     } catch (err) {
       console.error(`Falha em ${fonte}:`, err);
       falhas.push(`${fonte}: ${descreverErro(err)}`);
     }
   }
-  enviarJson(res, 502, { erro: `Falha ao consultar a IDAP. ${falhas.join(" | ")}` });
+  throw new Error(falhas.join(" | "));
+}
+
+const ordenar = (lista) => lista.sort(
+  (a, b) => Number(b.incluiPOA) - Number(a.incluiPOA) || a.ordemSeveridade - b.ordemSeveridade || String(b.enviado).localeCompare(String(a.enviado))
+);
+
+// Junta as duas fontes: IDAP (alertas estaduais e municipais em CAP) e o site da Defesa Civil RS.
+// Basta uma delas responder para o painel mostrar os alertas.
+export default async function handler(req, res) {
+  const [idap, site] = await Promise.allSettled([viaIdap(), alertasDoSite()]);
+  const fontes = [];
+  const falhas = [];
+  let alertas = [];
+
+  if (idap.status === "fulfilled") { fontes.push("IDAP"); alertas.push(...idap.value.alertas.map((a) => ({ ...a, origem: "idap" }))); }
+  else falhas.push(`IDAP: ${descreverErro(idap.reason)}`);
+
+  if (site.status === "fulfilled") { fontes.push("site Defesa Civil RS"); alertas.push(...site.value); }
+  else { console.error("Falha no site da Defesa Civil RS:", site.reason); falhas.push(`site Defesa Civil RS: ${descreverErro(site.reason)}`); }
+
+  if (!fontes.length) return enviarJson(res, 502, { erro: `Nenhuma fonte de alertas respondeu. ${falhas.join(" || ")}` });
+  enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), fontes, falhas, alertas: ordenar(alertas) }, 120);
 }
