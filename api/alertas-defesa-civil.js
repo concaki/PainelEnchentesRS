@@ -167,8 +167,10 @@ async function viaIdap() {
   throw new Error(falhas.join(" | "));
 }
 
+// Ordem: alertas antes de boletins; depois Porto Alegre, severidade e horário
+const ehBoletim = (a) => a.tipo === "boletim";
 const ordenar = (lista) => lista.sort(
-  (a, b) => Number(b.incluiPOA) - Number(a.incluiPOA) || a.ordemSeveridade - b.ordemSeveridade || String(b.enviado).localeCompare(String(a.enviado))
+  (a, b) => Number(ehBoletim(a)) - Number(ehBoletim(b)) || Number(b.incluiPOA) - Number(a.incluiPOA) || a.ordemSeveridade - b.ordemSeveridade || String(b.enviado).localeCompare(String(a.enviado))
 );
 
 // Junta as duas fontes: IDAP (alertas estaduais e municipais em CAP) e o site da Defesa Civil RS.

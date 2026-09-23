@@ -114,7 +114,9 @@ export async function alertasDoSite(agora = Date.now()) {
       municipios: [],
       totalMunicipios: 0,
       todoEstado: false,
-      incluiPOA: /porto alegre|guaíba|guaiba/i.test(texto) || texto.includes(IBGE_PORTO_ALEGRE),
+      // Boletins falam do estado todo; só alertas recebem a marca de Porto Alegre
+      incluiPOA: ehAlerta && (/porto alegre|lago gua[íi]ba/i.test(texto) || texto.includes(IBGE_PORTO_ALEGRE)),
+      tipo: ehAlerta ? "alerta" : "boletim",
       link: item.url,
       origem: "site",
     });
