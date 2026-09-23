@@ -2,414 +2,554 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Nível dos Rios - Painel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enchentes RS - Painel de monitoramento</title>
+  <meta name="description" content="Alertas da Defesa Civil e do INMET, nível dos rios e chuva no Rio Grande do Sul." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --fundo: #eef5f8;
+      --papel: #ffffff;
+      --tinta: #0d3b4f;
+      --tinta-suave: #4b6878;
+      --agua: #1273a8;
+      --agua-clara: #d7eaf3;
+      --borda: #cfdfe7;
+      --ok: #1f7a5c;
+      --atencao: #b86e00;
+      --atencao-fundo: #fff4de;
+      --perigo: #b3121f;
+      --perigo-fundo: #fde8ea;
+      --raio: 10px;
+    }
+    * { box-sizing: border-box; }
     body {
-      font-family: sans-serif;
       margin: 0;
-      padding: 2rem;
-      background: linear-gradient(to bottom, #e0f7fa, #ffffff);
-      color: #003b4f;
+      font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--fundo);
+      color: var(--tinta);
+      line-height: 1.45;
     }
+    a { color: var(--agua); }
+    .conteudo { max-width: 1240px; margin: 0 auto; padding: 1.25rem; }
 
-    h1 {
-      text-align: center;
-      color: #0077b6;
-      margin-bottom: 1rem;
+    header.topo {
+      background: var(--tinta);
+      color: #fff;
     }
-
-    .cards-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1rem;
+    header.topo .conteudo {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding-top: 1rem; padding-bottom: 1rem;
     }
-
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      padding: 1rem;
-      width: 280px;
-      max-width: 100%;
-      text-align: left;
+    header.topo h1 { margin: 0; font-size: 1.5rem; }
+    header.topo p { margin: 0.15rem 0 0; opacity: 0.85; font-size: 0.95rem; }
+    .botao {
+      font: inherit; font-weight: 700; cursor: pointer;
+      background: #fff; color: var(--tinta); border: 0; border-radius: 999px; padding: 0.5rem 1rem;
     }
+    .botao:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #7cc4ea; outline-offset: 2px; }
 
-    .card h3 {
-      margin-top: 0;
-      font-size: 1.2rem;
-    }
+    /* Resumo em números */
+    .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-top: 1.25rem; }
+    .indicador { background: var(--papel); border: 1px solid var(--borda); border-radius: var(--raio); padding: 0.8rem 1rem; }
+    .indicador strong { display: block; font-size: 1.9rem; line-height: 1.1; }
+    .indicador span { color: var(--tinta-suave); font-size: 0.9rem; }
+    .indicador.perigo { border-color: var(--perigo); background: var(--perigo-fundo); }
+    .indicador.perigo strong { color: var(--perigo); }
+    .indicador.atencao { border-color: var(--atencao); background: var(--atencao-fundo); }
+    .indicador.atencao strong { color: var(--atencao); }
 
-    .tendencia-up {
-      color: red;
-      font-weight: bold;
-    }
+    section { margin-top: 2rem; }
+    section > h2 { font-size: 1.3rem; margin: 0 0 0.25rem; }
+    .legenda { color: var(--tinta-suave); margin: 0 0 0.9rem; font-size: 0.93rem; }
 
-    .tendencia-down {
-      color: green;
-      font-weight: bold;
-    }
+    /* Alertas */
+    .colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; }
+    .painel { background: var(--papel); border: 1px solid var(--borda); border-radius: var(--raio); padding: 1rem; }
+    .painel h3 { margin: 0 0 0.75rem; font-size: 1.1rem; display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+    .painel h3 small { font-weight: 400; color: var(--tinta-suave); font-size: 0.85rem; }
+    .alerta { border-left: 5px solid var(--atencao); background: var(--atencao-fundo); border-radius: 6px; padding: 0.7rem 0.85rem; margin-bottom: 0.7rem; }
+    .alerta.grave { border-left-color: var(--perigo); background: var(--perigo-fundo); }
+    .alerta.leve { border-left-color: #c9a400; background: #fffbe0; }
+    .alerta strong { display: block; }
+    .alerta p { margin: 0.3rem 0 0; font-size: 0.93rem; }
+    .alerta .meta { color: var(--tinta-suave); font-size: 0.85rem; }
+    .etiqueta { display: inline-block; font-size: 0.78rem; font-weight: 700; padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--tinta); color: #fff; margin-right: 0.3rem; }
+    .alerta details { margin-top: 0.35rem; font-size: 0.9rem; }
+    .vazio { color: var(--tinta-suave); font-style: italic; }
+    .falha { color: var(--perigo); }
 
-    .erro {
-      text-align: center;
-      margin-top: 1rem;
-      color: red;
-    }
+    /* Cards de estação */
+    .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
+    .card { background: var(--papel); border: 1px solid var(--borda); border-radius: var(--raio); padding: 0.85rem 0.95rem; }
+    .card h4 { margin: 0; font-size: 1rem; }
+    .card .rio { color: var(--tinta-suave); font-size: 0.85rem; margin: 0 0 0.5rem; }
+    .card .nivel { font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
+    .card .nivel small { font-size: 0.95rem; font-weight: 400; }
+    .card .linha { font-size: 0.88rem; margin: 0.2rem 0 0; }
+    .card.inundacao { border: 2px solid var(--perigo); background: var(--perigo-fundo); }
+    .card.atencao { border: 2px solid var(--atencao); background: var(--atencao-fundo); }
+    .card.sem-dados { opacity: 0.7; }
+    .barra { height: 8px; background: var(--agua-clara); border-radius: 999px; margin: 0.45rem 0 0.2rem; overflow: hidden; }
+    .barra div { height: 100%; background: var(--agua); }
+    .card.atencao .barra div { background: var(--atencao); }
+    .card.inundacao .barra div { background: var(--perigo); }
+    .sobe { color: var(--perigo); font-weight: 700; }
+    .desce { color: var(--ok); font-weight: 700; }
+    .estavel { color: var(--tinta-suave); }
+    .bacia { margin-top: 1.1rem; }
+    .bacia h3 { font-size: 1rem; margin: 0 0 0.5rem; color: var(--tinta-suave); }
 
-    .alertas-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
+    /* Chuva */
+    .chuva-lista { list-style: none; margin: 0; padding: 0; }
+    .chuva-lista li { display: grid; grid-template-columns: minmax(130px, 1.3fr) 3fr 4.5rem; gap: 0.6rem; align-items: center; padding: 0.3rem 0; font-size: 0.92rem; }
+    .chuva-lista .trilho { height: 12px; background: var(--agua-clara); border-radius: 999px; overflow: hidden; }
+    .chuva-lista .trilho div { height: 100%; background: var(--agua); }
+    .chuva-lista .valor { text-align: right; font-weight: 700; }
 
-    .alerta-inmet {
-      background: #fde68a;
-      color: #92400e;
-      border-left: 6px solid #f59e0b;
-      padding: 1rem;
-      border-radius: 8px;
-      width: 300px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
+    /* Tempo agora */
+    .tempo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; }
+    .tempo div { background: var(--agua-clara); border-radius: 8px; padding: 0.6rem 0.7rem; }
+    .tempo strong { display: block; font-size: 1.25rem; white-space: nowrap; }
+    .tempo span { font-size: 0.85rem; color: var(--tinta-suave); }
 
-    .card.carregando {
-      opacity: 0.6;
-    }
+    /* Tabela */
+    .filtros { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .filtros input, .filtros select { font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--borda); border-radius: 8px; background: #fff; color: var(--tinta); }
+    .filtros input { flex: 1 1 220px; }
+    .rolagem { overflow-x: auto; background: var(--papel); border: 1px solid var(--borda); border-radius: var(--raio); }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { padding: 0.45rem 0.65rem; text-align: left; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+    th { background: var(--agua-clara); position: sticky; top: 0; }
+    td.num, th.num { text-align: right; }
+    tr.antiga td { color: var(--tinta-suave); }
 
-    .card.falha {
-      border-left: 4px solid #d62828;
-    }
+    iframe { width: 100%; height: 600px; border: 0; border-radius: var(--raio); background: var(--papel); }
+    footer { margin: 3rem 0 1.5rem; font-size: 0.88rem; color: var(--tinta-suave); }
+    footer p { margin: 0.3rem 0; }
 
-    .alerta-inmet small {
-      display: block;
-      margin-top: 0.4rem;
-      opacity: 0.85;
-    }
-
-    .atualizacao {
-      text-align: center;
-      font-size: 0.9rem;
-      color: #555;
-      margin: -0.5rem 0 1rem;
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 3rem;
-      font-size: 0.9rem;
-      color: #555;
+    @media (max-width: 600px) {
+      .conteudo { padding: 0.9rem; }
+      .chuva-lista li { grid-template-columns: 1fr 4rem; }
+      .chuva-lista .trilho { grid-column: 1 / -1; grid-row: 2; }
+      iframe { height: 420px; }
     }
   </style>
 </head>
 <body>
-  <h1 style="text-align: center; color: #0077b6;">🚨 Alertas INMET</h1>
-  <div id="alertas" class="alertas-container"></div>
+  <header class="topo">
+    <div class="conteudo">
+      <div>
+        <h1>🌊 Enchentes RS</h1>
+        <p id="status-geral">Carregando dados…</p>
+      </div>
+      <button class="botao" id="botao-atualizar" type="button">Atualizar agora</button>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <div class="resumo" id="resumo" aria-live="polite"></div>
+
+    <section id="secao-alertas">
+      <h2>🚨 Alertas ativos no RS</h2>
+      <p class="legenda">Alertas que incluem Porto Alegre aparecem primeiro. Em emergência, ligue 193 (Bombeiros) ou 199 (Defesa Civil).</p>
+      <div class="colunas">
+        <div class="painel">
+          <h3>Defesa Civil <small id="hora-dc"></small></h3>
+          <div id="alertas-dc"><p class="vazio">Carregando…</p></div>
+          <p class="meta"><a href="https://www.defesacivil.rs.gov.br/avisos-e-alertas" target="_blank" rel="noopener">Avisos no site da Defesa Civil RS</a> · Receba por SMS: envie seu CEP para 40199</p>
+        </div>
+        <div class="painel">
+          <h3>INMET <small id="hora-inmet"></small></h3>
+          <div id="alertas-inmet"><p class="vazio">Carregando…</p></div>
+          <p class="meta"><a href="https://alertas2.inmet.gov.br" target="_blank" rel="noopener">Todos os avisos do INMET</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="secao-cotas">
+      <h2>📏 Rios com cota de inundação</h2>
+      <p class="legenda">Estações da ANA/SGB. A barra mostra quanto falta para a cota de inundação. Amarelo a partir de 85% da cota, vermelho acima dela.</p>
+      <div class="grade" id="cards-ana"></div>
+    </section>
+
+    <section id="secao-dcrs">
+      <h2>📡 Rede de monitoramento da Defesa Civil</h2>
+      <p class="legenda">Principais pontos da bacia do Guaíba e afluentes. Cada estação tem sua própria régua, então compare pela tendência e não entre estações.</p>
+      <div id="cards-dcrs"></div>
+    </section>
+
+    <section id="secao-tempo">
+      <div class="colunas">
+        <div class="painel">
+          <h3>🌧️ Maior chuva nas últimas 24h <small>Rede Defesa Civil</small></h3>
+          <ul class="chuva-lista" id="ranking-chuva"><li class="vazio">Carregando…</li></ul>
+        </div>
+        <div class="painel">
+          <h3>🌡️ Tempo agora <small id="tempo-local"></small></h3>
+          <div class="tempo" id="tempo-agora"><p class="vazio">Carregando…</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secao-todas">
+      <h2>🗂️ Todas as estações da Defesa Civil</h2>
+      <p class="legenda" id="legenda-todas">Nível, tendência e chuva de todas as estações do estado.</p>
+      <div class="filtros">
+        <input type="search" id="busca" placeholder="Buscar cidade ou estação" aria-label="Buscar estação" />
+        <select id="filtro-bacia" aria-label="Filtrar por bacia"><option value="">Todas as bacias</option></select>
+        <select id="ordem" aria-label="Ordenar">
+          <option value="bacia">Ordenar por bacia</option>
+          <option value="subida">Subindo mais rápido</option>
+          <option value="chuva">Mais chuva em 24h</option>
+        </select>
+      </div>
+      <div class="rolagem">
+        <table>
+          <thead>
+            <tr><th>Estação</th><th>Bacia</th><th class="num">Nível</th><th class="num">Tendência</th><th class="num">Chuva 1h</th><th class="num">Chuva 24h</th><th>Leitura</th></tr>
+          </thead>
+          <tbody id="tabela-estacoes"><tr><td colspan="7" class="vazio">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>📡 Radar meteorológico</h2>
+      <iframe src="https://radar-poa-13561874921.us-east1.run.app/" title="Radar meteorológico de Porto Alegre" loading="lazy"></iframe>
+    </section>
+
+    <section>
+      <h2>🌦️ Previsão do tempo</h2>
+      <!-- ATENÇÃO: o link "Meteorologia 25 dias" abaixo aponta para Lisboa e é exigido pelo
+           weatherwidget.org (alterar à mão pode quebrar o widget). Para corrigir, gere um novo
+           widget em https://weatherwidget.org escolhendo Porto Alegre e cole o código aqui. -->
+      <div id="ww_0481786a4d92f" v='1.3' loc='auto' a='{"t":"responsive","lang":"pt","sl_lpl":1,"ids":[],"font":"Arial","sl_ics":"one_a","sl_sot":"celsius","cl_bkg":"image","cl_font":"#FFFFFF","cl_cloud":"#FFFFFF","cl_persp":"#81D4FA","cl_sun":"#FFC107","cl_moon":"#FFC107","cl_thund":"#FF5722"}'>Mais previsões: <a href="https://oneweather.org/pt/lisbon/25_days/" id="ww_0481786a4d92f_u" target="_blank">Meteorologia 25 dias</a></div><script async src="https://app3.weatherwidget.org/js/?id=ww_0481786a4d92f"></script>
+    </section>
+
+    <footer>
+      <p>Fontes: Defesa Civil RS (Rede Hidrometeorológica, dados MKS), Defesa Civil Nacional (IDAP/MIDR), INMET e ANA/SGB. Este painel não emite alertas oficiais; siga sempre as orientações da Defesa Civil.</p>
+      <p>Desenvolvido por PU3CKD - Copyright Todos os Direitos Reservados - 2025</p>
+    </footer>
+  </main>
+
   <script>
-    // Escapa texto vindo de APIs antes de inserir com innerHTML (evita XSS)
-    function escapeHtml(valor) {
-      return String(valor ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    // ================= Configuração =================
+    const INTERVALO_MS = 5 * 60 * 1000; // atualização automática a cada 5 minutos
+    const POA = { lat: -30.0346, lon: -51.2177 };
+
+    // Estações da Defesa Civil em destaque, agrupadas por bacia (códigos da API da Rede Hidrometeorológica)
+    const DESTAQUES_DCRS = [
+      { bacia: "Lago Guaíba", codigos: ["DCRS-00122", "DCRS-00033", "DCRS-00076", "DCRS-00054", "DCRS-00044"] },
+      { bacia: "Rio Gravataí", codigos: ["DCRS-00120"] },
+      { bacia: "Rio Caí", codigos: ["DCRS-00012", "DCRS-00031", "DCRS-00069"] },
+      { bacia: "Rio Taquari", codigos: ["DCRS-00104", "DCRS-00123", "DCRS-00092", "DCRS-00091", "DCRS-00129"] },
+      { bacia: "Rio Jacuí", codigos: ["DCRS-00102", "DCRS-00028", "DCRS-00093", "DCRS-00032"] },
+      { bacia: "Lagoa dos Patos", codigos: ["DCRS-00038"] },
+    ];
+
+    // ================= Utilidades =================
+    const $ = (id) => document.getElementById(id);
+
+    function esc(valor) {
+      return String(valor ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
-    // fetch com tempo limite, para uma API lenta não travar o painel
-    async function fetchComTimeout(url, ms = 15000) {
+    const fmtNum = (n, casas = 2) => (n === null || n === undefined || !isFinite(n)) ? "—" : Number(n).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
+    function fmtData(iso, { utc = false, curto = false } = {}) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (isNaN(d)) return "—";
+      const opcoes = curto ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" } : { dateStyle: "short", timeStyle: "short" };
+      return d.toLocaleString("pt-BR", { ...opcoes, timeZone: utc ? "UTC" : "America/Sao_Paulo" });
+    }
+
+    // Tendência em cm/h → HTML com seta
+    function tendencia(cmH) {
+      if (cmH === null || cmH === undefined || !isFinite(cmH)) return '<span class="estavel">sem dado</span>';
+      if (Math.abs(cmH) < 0.5) return '<span class="estavel">● estável</span>';
+      const forte = Math.abs(cmH) >= 10 ? " forte" : "";
+      return cmH > 0
+        ? `<span class="sobe">▲ subindo${forte} ${fmtNum(cmH, 1)} cm/h</span>`
+        : `<span class="desce">▼ descendo${forte} ${fmtNum(Math.abs(cmH), 1)} cm/h</span>`;
+    }
+
+    function direcaoVento(graus) {
+      if (graus === null || graus === undefined) return "";
+      const d = ["N", "NNE", "NE", "ENE", "L", "LSE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+      return d[Math.round(graus / 22.5) % 16];
+    }
+
+    function distanciaKm(a, b) {
+      const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+      return 12742 * Math.asin(Math.sqrt(h));
+    }
+
+    async function buscarJson(url) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), ms);
+      const timer = setTimeout(() => controller.abort(), 35000);
       try {
-        return await fetch(url, { signal: controller.signal });
+        const res = await fetch(url, { signal: controller.signal });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.erro || `HTTP ${res.status}`);
+        return json;
       } finally {
         clearTimeout(timer);
       }
     }
 
-    const IBGE_PORTO_ALEGRE = "4314902";
+    // ================= Estado =================
+    const estado = { dc: null, inmet: null, ana: null, dcrs: null, erros: {} };
 
-    // O campo geocodes pode vir como texto separado por vírgulas ou como lista
-    function listaGeocodes(alerta) {
-      const g = alerta.geocodes;
-      if (!g) return [];
-      if (Array.isArray(g)) return g.map(String);
-      return String(g).split(",").map(s => s.trim()).filter(Boolean);
+    // ================= Alertas =================
+    function classeSeveridade(sev) {
+      const s = String(sev || "").toLowerCase();
+      if (/extrem|sever|grande perigo|^perigo$/.test(s)) return "grave";
+      if (/baixa|potencial|minor/.test(s)) return "leve";
+      return "";
     }
 
-    async function carregarAlertasINMET() {
-      const container = document.getElementById("alertas");
-      try {
-        const res = await fetchComTimeout("https://apiprevmet3.inmet.gov.br/avisos/ativos");
-        if (!res.ok) throw new Error("Erro na resposta da API INMET");
-        const data = await res.json();
+    function renderAlertasDC() {
+      const alvo = $("alertas-dc");
+      if (estado.erros.dc) { alvo.innerHTML = `<p class="falha">Não foi possível buscar os alertas da Defesa Civil agora (${esc(estado.erros.dc)}). Confira o site oficial abaixo.</p>`; return; }
+      const lista = estado.dc?.alertas ?? [];
+      $("hora-dc").textContent = estado.dc ? `atualizado ${fmtData(estado.dc.atualizadoEm, { curto: true })}` : "";
+      if (!lista.length) { alvo.innerHTML = '<p class="vazio">Nenhum alerta ativo da Defesa Civil para o RS.</p>'; return; }
+      alvo.innerHTML = lista.map((a) => {
+        const area = a.todoEstado ? "Todo o estado" : a.municipios.length
+          ? `${a.municipios.slice(0, 8).map(esc).join(", ")}${a.totalMunicipios > 8 ? ` e mais ${a.totalMunicipios - 8}` : ""}`
+          : `${a.totalMunicipios} município(s)`;
+        return `
+          <div class="alerta ${classeSeveridade(a.severidade)}">
+            <strong>${a.incluiPOA ? '<span class="etiqueta">Porto Alegre</span>' : ""}${esc(a.evento || "Alerta")}${a.severidade ? ` · ${esc(a.severidade)}` : ""}</strong>
+            <p>${esc(a.titulo || a.descricao)}</p>
+            <p class="meta">📍 ${area}</p>
+            <p class="meta">Emitido ${fmtData(a.enviado)}${a.expira ? ` · válido até ${fmtData(a.expira)}` : ""}${a.emissor ? ` · ${esc(a.emissor)}` : ""}</p>
+            ${(a.descricao && a.descricao !== a.titulo) || a.instrucao ? `<details><summary>Detalhes e orientações</summary>${a.descricao && a.descricao !== a.titulo ? `<p>${esc(a.descricao)}</p>` : ""}${a.instrucao ? `<p><strong>O que fazer:</strong> ${esc(a.instrucao)}</p>` : ""}</details>` : ""}
+          </div>`;
+      }).join("");
+    }
 
-        // Junta hoje + futuro e remove duplicados (o mesmo aviso pode aparecer nas duas listas)
-        const vistos = new Set();
-        const alertas = [...(data.hoje || []), ...(data.futuro || [])].filter(a => {
-          const chave = a.id ?? `${a.descricao}|${a.inicio}|${a.fim}`;
-          if (vistos.has(chave)) return false;
-          vistos.add(chave);
-          return true;
-        });
+    function renderAlertasINMET() {
+      const alvo = $("alertas-inmet");
+      if (estado.erros.inmet) { alvo.innerHTML = `<p class="falha">Não foi possível buscar os avisos do INMET agora (${esc(estado.erros.inmet)}). Confira o site oficial abaixo.</p>`; return; }
+      const lista = estado.inmet?.alertas ?? [];
+      $("hora-inmet").textContent = estado.inmet ? `atualizado ${fmtData(estado.inmet.atualizadoEm, { curto: true })}` : "";
+      if (!lista.length) { alvo.innerHTML = '<p class="vazio">Nenhum aviso ativo do INMET para o RS.</p>'; return; }
+      alvo.innerHTML = lista.map((a) => `
+        <div class="alerta ${classeSeveridade(a.severidade)}">
+          <strong>${a.incluiPOA ? '<span class="etiqueta">Porto Alegre</span>' : ""}${esc(a.evento)}${a.severidade ? ` · ${esc(a.severidade)}` : ""}</strong>
+          <p class="meta">📍 ${a.totalMunicipiosRS} município(s) do RS</p>
+          <p class="meta">${a.inicio ? `De ${fmtData(a.inicio)} ` : ""}${a.fim ? `até ${fmtData(a.fim)}` : ""}</p>
+          ${a.riscos || a.instrucoes ? `<details><summary>Riscos e orientações</summary>${a.riscos ? `<p>${esc(Array.isArray(a.riscos) ? a.riscos.join(" ") : a.riscos)}</p>` : ""}${a.instrucoes ? `<p><strong>O que fazer:</strong> ${esc(Array.isArray(a.instrucoes) ? a.instrucoes.join(" ") : a.instrucoes)}</p>` : ""}</details>` : ""}
+          <p class="meta"><a href="${esc(a.link)}" target="_blank" rel="noopener">Ver no site do INMET</a></p>
+        </div>`).join("");
+    }
 
-        // Códigos IBGE de municípios do RS começam com "43"
-        const rsAlertas = alertas
-          .map(a => {
-            const codigos = listaGeocodes(a);
-            const municipiosRS = codigos.filter(c => c.startsWith("43"));
-            return { ...a, municipiosRS, incluiPOA: codigos.includes(IBGE_PORTO_ALEGRE) };
-          })
-          .filter(a => a.municipiosRS.length > 0)
-          // Alertas que incluem Porto Alegre aparecem primeiro
-          .sort((a, b) => Number(b.incluiPOA) - Number(a.incluiPOA));
+    // ================= ANA (com cota) =================
+    function renderANA() {
+      const alvo = $("cards-ana");
+      if (estado.erros.ana) { alvo.innerHTML = `<p class="falha">Não foi possível carregar as estações da ANA agora (${esc(estado.erros.ana)}).</p>`; return; }
+      const lista = estado.ana?.estacoes ?? [];
+      alvo.innerHTML = lista.map((e) => {
+        if (!e.ok) return `<div class="card sem-dados"><h4>${esc(e.local)}</h4><p class="rio">${esc(e.rio)}</p><p class="linha">Sem dados da estação agora.</p></div>`;
+        const pct = e.pctCota;
+        const statusTexto = e.status === "inundacao" ? "Acima da cota de inundação" : e.status === "atencao" ? "Perto da cota" : e.status === "normal" ? "Abaixo da cota" : "Sem cota definida";
+        return `
+          <div class="card ${e.status === "inundacao" ? "inundacao" : e.status === "atencao" ? "atencao" : ""}">
+            <h4>${esc(e.local)}</h4>
+            <p class="rio">${esc(e.rio)}</p>
+            <div class="nivel">${fmtNum(e.nivel)} <small>m</small></div>
+            ${pct !== null ? `<div class="barra" role="img" aria-label="${fmtNum(pct, 0)}% da cota"><div style="width:${Math.min(pct, 100)}%"></div></div>` : ""}
+            <p class="linha"><strong>${statusTexto}</strong>${e.cota ? ` · cota ${fmtNum(e.cota)} m (${fmtNum(pct, 0)}%)` : ""}</p>
+            <p class="linha">${tendencia(e.tendenciaCmH)}</p>
+            ${e.chuvaUltima !== null ? `<p class="linha">💧 Chuva última leitura: ${fmtNum(e.chuvaUltima, 1)} mm</p>` : ""}
+            <p class="linha estavel">⏰ ${fmtData(e.dataLeitura, { utc: true })}</p>
+          </div>`;
+      }).join("");
+    }
 
-        container.innerHTML = "";
+    // ================= Defesa Civil (rede) =================
+    const cmH = (e) => (e?.tendenciaMh === null || e?.tendenciaMh === undefined) ? null : e.tendenciaMh * 100;
 
-        if (!rsAlertas.length) {
-          container.innerHTML = '<div class="alerta-inmet">Nenhum alerta ativo para o RS no momento.</div>';
-          return;
-        }
+    function cardDCRS(e) {
+      if (!e) return "";
+      const semNivel = e.nivel === null;
+      return `
+        <div class="card ${semNivel || e.desatualizada ? "sem-dados" : ""}">
+          <h4>${esc(e.nome)}</h4>
+          <p class="rio">${esc(e.bacia || "")}</p>
+          <div class="nivel">${semNivel ? "—" : `${fmtNum(e.nivel)} <small>m</small>`}</div>
+          <p class="linha">${e.sensorComDefeito ? '<span class="falha">Leitura inválida do sensor</span>' : tendencia(cmH(e))}</p>
+          <p class="linha">💧 1h: ${fmtNum(e.chuva.h1, 1)} mm · 24h: ${fmtNum(e.chuva.h24, 1)} mm</p>
+          <p class="linha ${e.desatualizada ? "falha" : "estavel"}">⏰ ${e.desatualizada ? "Sem atualização desde " : ""}${fmtData(e.ultimaLeitura, { curto: true })}</p>
+        </div>`;
+    }
 
-        rsAlertas.forEach(alerta => {
-          const tipo = alerta.descricao || "Tipo não informado";
-          const severidade = alerta.severidade || "N/A";
-          const inicio = alerta.inicio ? new Date(alerta.inicio).toLocaleString("pt-BR") : null;
-          const fimAlerta = alerta.fim ? new Date(alerta.fim).toLocaleString("pt-BR") : "Data não disponível";
-
-          const div = document.createElement("div");
-          div.className = "alerta-inmet";
-          div.innerHTML = `
-            <strong>🚨 ${escapeHtml(tipo)}</strong><br>
-            Severidade: <strong>${escapeHtml(severidade)}</strong><br>
-            ${inicio ? `Início: <strong>${escapeHtml(inicio)}</strong><br>` : ""}
-            Válido até: <strong>${escapeHtml(fimAlerta)}</strong>
-            <small>${alerta.incluiPOA ? "📍 Inclui Porto Alegre · " : ""}${alerta.municipiosRS.length} município(s) do RS</small>
-          `;
-          container.appendChild(div);
-        });
-      } catch (err) {
-        console.error("Erro ao buscar alertas INMET:", err);
-        container.innerHTML = '<div class="alerta-inmet">Não foi possível buscar os alertas do INMET agora. Consulte <a href="https://alertas2.inmet.gov.br" target="_blank" rel="noopener">alertas2.inmet.gov.br</a>.</div>';
+    function renderDCRS() {
+      const alvo = $("cards-dcrs");
+      if (estado.erros.dcrs) {
+        alvo.innerHTML = `<p class="falha">Não foi possível carregar a rede da Defesa Civil agora (${esc(estado.erros.dcrs)}).</p>`;
+        $("tabela-estacoes").innerHTML = '<tr><td colspan="7" class="falha">Dados indisponíveis no momento.</td></tr>';
+        $("ranking-chuva").innerHTML = '<li class="falha">Dados indisponíveis no momento.</li>';
+        $("tempo-agora").innerHTML = '<p class="falha">Dados indisponíveis no momento.</p>';
+        return;
       }
+      const todas = estado.dcrs?.estacoes ?? [];
+      const porCodigo = new Map(todas.map((e) => [e.codigo, e]));
+      alvo.innerHTML = DESTAQUES_DCRS.map((g) => {
+        const cards = g.codigos.map((c) => cardDCRS(porCodigo.get(c))).join("");
+        return cards ? `<div class="bacia"><h3>${esc(g.bacia)}</h3><div class="grade">${cards}</div></div>` : "";
+      }).join("") || '<p class="vazio">Nenhuma das estações em destaque respondeu.</p>';
+
+      renderRankingChuva(todas);
+      renderTempoAgora(todas);
+      preencherFiltroBacias(todas);
+      renderTabela();
     }
 
-    carregarAlertasINMET();
-  </script>
+    function renderRankingChuva(todas) {
+      const top = todas.filter((e) => e.chuva.h24 !== null && !e.desatualizada)
+        .sort((a, b) => b.chuva.h24 - a.chuva.h24).slice(0, 10);
+      const max = top[0]?.chuva.h24 || 0;
+      if (!top.length || max === 0) { $("ranking-chuva").innerHTML = '<li class="vazio">Sem chuva registrada nas últimas 24h.</li>'; return; }
+      $("ranking-chuva").innerHTML = top.map((e) => `
+        <li>
+          <span>${esc(e.nome)}</span>
+          <span class="trilho"><div style="width:${(e.chuva.h24 / max) * 100}%"></div></span>
+          <span class="valor">${fmtNum(e.chuva.h24, 1)} mm</span>
+        </li>`).join("");
+    }
 
-  <h1>🌊 Nível dos Rios</h1>
-  <p class="atualizacao" id="ultima-atualizacao">Carregando dados das estações…</p>
-  <div class="erro" id="mensagem-erro" style="display: none;">Não foi possível carregar os dados das estações. Tentaremos novamente em instantes.</div>
-  <div id="cards" class="cards-container"></div>
+    function renderTempoAgora(todas) {
+      const comClima = todas.filter((e) => e.clima?.temperatura !== null && e.latitude !== null && !e.desatualizada);
+      if (!comClima.length) { $("tempo-agora").innerHTML = '<p class="vazio">Nenhuma estação com dados de clima no momento.</p>'; $("tempo-local").textContent = ""; return; }
+      const e = comClima.map((x) => ({ x, d: distanciaKm(POA, { lat: x.latitude, lon: x.longitude }) })).sort((a, b) => a.d - b.d)[0].x;
+      const c = e.clima;
+      $("tempo-local").textContent = `${e.nome} · ${fmtData(e.ultimaLeitura, { curto: true })}`;
+      const itens = [
+        ["Temperatura", c.temperatura !== null ? `${fmtNum(c.temperatura, 1)} °C` : null],
+        ["Sensação", c.sensacao !== null ? `${fmtNum(c.sensacao, 1)} °C` : null],
+        ["Umidade", c.umidade !== null ? `${fmtNum(c.umidade, 0)}%` : null],
+        ["Vento", c.ventoMedio !== null ? `${fmtNum(c.ventoMedio, 0)} km/h ${direcaoVento(c.ventoDirecao)}` : null],
+        ["Rajada", c.ventoMaximo !== null ? `${fmtNum(c.ventoMaximo, 0)} km/h` : null],
+        ["Pressão", c.pressao !== null ? `${fmtNum(c.pressao, 0)} hPa` : null],
+        ["Chuva 24h", e.chuva.h24 !== null ? `${fmtNum(e.chuva.h24, 1)} mm` : null],
+        ["Chuva 7 dias", e.chuva.h168 !== null ? `${fmtNum(e.chuva.h168, 1)} mm` : null],
+      ].filter(([, v]) => v);
+      $("tempo-agora").innerHTML = itens.map(([rotulo, valor]) => `<div><strong>${esc(valor)}</strong><span>${rotulo}</span></div>`).join("");
+    }
 
-  <section>
-    <h1 style="text-align: center; color: #0077b6; margin-top: 3rem;">📡 Imagens do Radar</h1>
-    <div style="display: flex; justify-content: center;">
-      <iframe src="https://radar-poa-13561874921.us-east1.run.app/" width="100%" height="600" style="border: none; max-width: 1200px;"></iframe>
-    </div>
-  </section>
+    function preencherFiltroBacias(todas) {
+      const sel = $("filtro-bacia");
+      const atual = sel.value;
+      const bacias = [...new Set(todas.map((e) => e.bacia).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      sel.innerHTML = '<option value="">Todas as bacias</option>' + bacias.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+      sel.value = bacias.includes(atual) ? atual : "";
+    }
 
-  <section>
-    <h1 style="text-align: center; color: #0077b6; margin-top: 3rem;">🌦️ Previsão do Tempo</h1>
-    <!-- ATENÇÃO: o link "Meteorologia 25 dias" abaixo aponta para Lisboa e é exigido pelo
-         weatherwidget.org (alterar à mão pode quebrar o widget). Para corrigir, gere um novo
-         widget em https://weatherwidget.org escolhendo Porto Alegre e cole o código aqui. -->
-    <div id="ww_0481786a4d92f" v='1.3' loc='auto' a='{"t":"responsive","lang":"pt","sl_lpl":1,"ids":[],"font":"Arial","sl_ics":"one_a","sl_sot":"celsius","cl_bkg":"image","cl_font":"#FFFFFF","cl_cloud":"#FFFFFF","cl_persp":"#81D4FA","cl_sun":"#FFC107","cl_moon":"#FFC107","cl_thund":"#FF5722"}'>Mais previsões: <a href="https://oneweather.org/pt/lisbon/25_days/" id="ww_0481786a4d92f_u" target="_blank">Meteorologia 25 dias</a></div><script async src="https://app3.weatherwidget.org/js/?id=ww_0481786a4d92f"></script>
-  </section>
+    function renderTabela() {
+      const todas = (estado.dcrs?.estacoes ?? []).filter((e) => e.temRio);
+      const termo = $("busca").value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const bacia = $("filtro-bacia").value;
+      const ordem = $("ordem").value;
+      let lista = todas.filter((e) =>
+        (!bacia || e.bacia === bacia) &&
+        (!termo || e.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(termo))
+      );
+      if (ordem === "subida") lista.sort((a, b) => (cmH(b) ?? -Infinity) - (cmH(a) ?? -Infinity));
+      else if (ordem === "chuva") lista.sort((a, b) => (b.chuva.h24 ?? -1) - (a.chuva.h24 ?? -1));
+      else lista.sort((a, b) => String(a.bacia).localeCompare(String(b.bacia), "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"));
 
-  <footer>
-    Desenvolvido por PU3CKD - Copyright Todos os Direitos Reservados - 2025
-  </footer>
+      $("legenda-todas").textContent = `${todas.length} estações com medição de rio. Mostrando ${lista.length}.`;
+      $("tabela-estacoes").innerHTML = lista.length ? lista.map((e) => `
+        <tr class="${e.desatualizada ? "antiga" : ""}">
+          <td>${esc(e.nome)}</td>
+          <td>${esc(e.bacia || "—")}</td>
+          <td class="num">${e.sensorComDefeito ? '<span class="falha">inválido</span>' : e.nivel === null ? "—" : `${fmtNum(e.nivel)} m`}</td>
+          <td class="num">${tendencia(cmH(e))}</td>
+          <td class="num">${fmtNum(e.chuva.h1, 1)}</td>
+          <td class="num">${fmtNum(e.chuva.h24, 1)}</td>
+          <td>${e.desatualizada ? "⚠️ " : ""}${fmtData(e.ultimaLeitura, { curto: true })}</td>
+        </tr>`).join("") : '<tr><td colspan="7" class="vazio">Nenhuma estação encontrada com esse filtro.</td></tr>';
+    }
 
-  <script>
-    // cota: cota de inundação em metros. null = sem cota oficial definida para a estação.
-    // Conferidas com nivelguaiba.com.br: São Leopoldo, Feliz, Gravataí, Muçum, Lajeado e Dona Francisca.
-    // A CONFERIR: Gasômetro (fontes divergem entre 2,60 m e 3,60 m conforme a régua) e
-    // Taquara (fontes citam 6,00 m e 7,00 m, possivelmente estações diferentes).
-    const estacoes = [
-      { nome: "Lago Guaíba", id: "87450020", local: "Usina do Gasômetro", cota: 3.60 },
-      { nome: "Lago Guaíba", id: "87460120", local: "Ipanema", cota: null },
-      { nome: "Lago Guaíba", id: "87242000", local: "Guaiba (Catamaran)", cota: null },
-      { nome: "Lagoa dos Patos", id: "3051077", local: "Pq.Itapuâ (Viamão)", cota: null },
-      { nome: "Rio dos Sinos", id: "87382000", local: "São Leopoldo", cota: 4.50 },
-      { nome: "Rio Caí", id: "86510000", local: "São Sebastião do Caí", cota: 10.00 },
-      { nome: "Rio Caí", id: "87165001", local: "Feliz", cota: 9.00 },
-      { nome: "Rio Paranhana", id: "87376000", local: "Taquara", cota: 5.00 },
-      { nome: "Rio Gravataí", id: "87399000", local: "Gravataí", cota: 4.75 },
-      { nome: "Rio Alto Taquari", id: "86510000", local: "Muçum", cota: 18.00 },
-      { nome: "Rio Taquari", id: "86879300", local: "Lajeado", cota: 19.00 },
-      { nome: "Rio Jacuí", id: "85400000", local: "Dona Francisca", cota: 7.50 },
-      { nome: "Lagoa dos Patos", id: "87980000", local: "Rio Grande", cota: 1.90 },
-      { nome: "Lagoa dos Patos", id: "87401750", local: "Alvorada", cota: null },
-      { nome: "Lagoa dos Patos", id: "87270000", local: "Montenegro", cota: null },
-      { nome: "Rio das Antas", id: "86450500", local: "Veranópolis", cota: 149.00 }
-    ];
+    // ================= Resumo =================
+    function renderResumo() {
+      const dc = estado.dc?.alertas?.length ?? null;
+      const inmet = estado.inmet?.alertas?.length ?? null;
+      const ana = estado.ana?.estacoes ?? [];
+      const inundados = ana.filter((e) => e.status === "inundacao");
+      const atencao = ana.filter((e) => e.status === "atencao");
+      const dcrs = (estado.dcrs?.estacoes ?? []).filter((e) => e.temRio && !e.desatualizada);
+      const subindoForte = dcrs.filter((e) => (cmH(e) ?? 0) >= 5);
+      const maiorChuva = (estado.dcrs?.estacoes ?? []).filter((e) => e.chuva.h24 !== null && !e.desatualizada).sort((a, b) => b.chuva.h24 - a.chuva.h24)[0];
 
-    const INTERVALO_ATUALIZACAO_MS = 15 * 60 * 1000; // 15 minutos
+      const ind = (valor, rotulo, classe = "") => `<div class="indicador ${classe}"><strong>${valor}</strong><span>${rotulo}</span></div>`;
+      $("resumo").innerHTML = [
+        ind(dc ?? "—", "alertas da Defesa Civil", dc ? "perigo" : ""),
+        ind(inmet ?? "—", "avisos do INMET", inmet ? "atencao" : ""),
+        ind(inundados.length, inundados.length ? `acima da cota: ${inundados.map((e) => esc(e.local)).join(", ")}` : "rios acima da cota", inundados.length ? "perigo" : ""),
+        ind(atencao.length, atencao.length ? `perto da cota: ${atencao.map((e) => esc(e.local)).join(", ")}` : "rios perto da cota", atencao.length ? "atencao" : ""),
+        ind(subindoForte.length, "estações subindo 5 cm/h ou mais", subindoForte.length ? "atencao" : ""),
+        ind(maiorChuva ? `${fmtNum(maiorChuva.chuva.h24, 0)} mm` : "—", maiorChuva ? `maior chuva 24h: ${esc(maiorChuva.nome)}` : "maior chuva 24h"),
+      ].join("");
+    }
 
-    async function getClima(lat, lon) {
-      const apiKey = '6492a3173845934a32cddb310765f0eb';
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=pt`;
-      try {
-        const res = await fetchComTimeout(url);
-        const json = await res.json();
+    // ================= Carga =================
+    let carregando = false;
 
-        if (!json.main || !json.wind || !json.weather) {
-          console.warn("Resposta da API incompleta ou inválida para lat:", lat, "lon:", lon);
-          return null;
+    async function carregarTudo() {
+      if (carregando) return;
+      carregando = true;
+      $("botao-atualizar").disabled = true;
+      $("status-geral").textContent = "Atualizando…";
+
+      const fontes = [
+        ["dc", "/api/alertas-defesa-civil", renderAlertasDC],
+        ["inmet", "/api/alertas-inmet", renderAlertasINMET],
+        ["ana", "/api/estacoes-ana", renderANA],
+        ["dcrs", "/api/estacoes-dcrs", renderDCRS],
+      ];
+
+      // Cada fonte aparece assim que responde, sem esperar as outras
+      await Promise.all(fontes.map(async ([chave, url, render]) => {
+        try {
+          estado[chave] = await buscarJson(url);
+          delete estado.erros[chave];
+        } catch (err) {
+          console.error(`Falha em ${url}:`, err);
+          // Mantém os dados antigos na tela se já existirem
+          if (!estado[chave]) estado.erros[chave] = err.name === "AbortError" ? "tempo esgotado" : err.message;
         }
-
-        return {
-          temperatura: json.main.temp,
-          umidade: json.main.humidity,
-          pressao: json.main.pressure,
-          ventoVel: (json.wind.speed * 3.6).toFixed(1),
-          ventoDir: json.wind.deg
-        };
-      } catch (err) {
-        console.error("Erro ao buscar clima:", err);
-        return null;
-      }
-    }
-
-    function montarCard(estacao, conteudoHtml, classeExtra = "") {
-      const card = document.createElement('div');
-      card.className = `card ${classeExtra}`.trim();
-      card.innerHTML = conteudoHtml;
-      return card;
-    }
-
-    function cardCarregando(estacao) {
-      return montarCard(estacao, `
-        <h3>${escapeHtml(estacao.nome)}</h3>
-        <p>📍 Local: ${escapeHtml(estacao.local)}</p>
-        <p><em>Carregando…</em></p>
-      `, "carregando");
-    }
-
-    // Retorna { card, ok } — ok = false quando a estação falhou
-    async function fetchDados(estacao) {
-      try {
-        const [resMapa, res24h] = await Promise.all([
-          fetchComTimeout(`https://ows.snirh.gov.br/ords/servicos/hidro/mapa/${estacao.id}`),
-          fetchComTimeout(`https://ows.snirh.gov.br/ords/servicos/hidro/estacao/24h/${estacao.id}`)
-        ]);
-
-        if (!resMapa.ok || !res24h.ok) {
-          throw new Error(`Falha na resposta da API (${resMapa.status}/${res24h.status})`);
-        }
-
-        const dadosMapa = await resMapa.json();
-        const dados24h = await res24h.json();
-
-        const itemMapa = dadosMapa?.items?.[0] || {};
-        const item24 = dados24h?.items?.[1] || {};
-
-        const nivelAtual = parseFloat(itemMapa.nivel_ult);
-        const nivelAnterior = parseFloat(item24.nivel);
-
-        let tendencia = '';
-        if (!isNaN(nivelAtual) && !isNaN(nivelAnterior)) {
-          if (nivelAtual > nivelAnterior) tendencia = '▲';
-          else if (nivelAtual < nivelAnterior) tendencia = '▼';
-        }
-
-        let clima = null;
-        if (itemMapa.latitude && itemMapa.longitude) {
-          clima = await getClima(itemMapa.latitude, itemMapa.longitude);
-        }
-
-        const temCota = typeof estacao.cota === "number";
-        const chuva = itemMapa.chuva_ult !== null && itemMapa.chuva_ult !== undefined
-          ? `${escapeHtml(itemMapa.chuva_ult)} mm` : 'Não disponível';
-
-        const card = montarCard(estacao, `
-          <h3>${escapeHtml(estacao.nome)} ${tendencia === '▲' ? '<span class="tendencia-up">▲</span>' : (tendencia === '▼' ? '<span class="tendencia-down">▼</span>' : '')}</h3>
-          <p>📍 Local: ${escapeHtml(estacao.local)}</p>
-          <p>📊 Nível Atual: ${!isNaN(nivelAtual) ? (nivelAtual / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
-          <p>📏 Cota de Inundação: ${temCota ? estacao.cota.toFixed(2) + ' m' : 'não definida'}</p>
-          <p>💧 Chuva: ${chuva}</p>
-          <p>📖 Leitura Anterior: ${!isNaN(nivelAnterior) ? (nivelAnterior / 100).toFixed(2) + ' m' : 'Não disponível'}</p>
-          <p>⏰ Data e Hora: ${item24.data ? escapeHtml(new Date(item24.data).toLocaleString('pt-BR', { timeZone: 'UTC' })) : 'Não disponível'}</p>
-          ${clima ? `<p>🌡️ Temperatura: ${escapeHtml(clima.temperatura)} °C</p>
-<p>💧 Umidade: ${escapeHtml(clima.umidade)}%</p>
-<p>🔽 Pressão: ${escapeHtml(clima.pressao)} hPa</p>
-<p>🌬️ Vento: ${escapeHtml(clima.ventoVel)} km/h (${getDirecaoVento(clima.ventoDir)})</p>` : ''}
-        `);
-        return { card, ok: true };
-      } catch (error) {
-        console.error('Erro ao carregar dados da estação', estacao.local, error);
-        const card = montarCard(estacao, `
-          <h3>${escapeHtml(estacao.nome)}</h3>
-          <p>📍 Local: ${escapeHtml(estacao.local)}</p>
-          <p><em>Não foi possível carregar os dados desta estação.</em></p>
-        `, "falha");
-        return { card, ok: false };
-      }
-    }
-
-    let atualizando = false;
-
-    async function carregarEstacoes() {
-      if (atualizando) return; // evita duas atualizações sobrepostas
-      atualizando = true;
-
-      const cardsContainer = document.getElementById('cards');
-      const msgErro = document.getElementById('mensagem-erro');
-      const msgAtualizacao = document.getElementById('ultima-atualizacao');
-
-      // Na primeira carga, mostra os cards com "Carregando…" na ordem certa.
-      // Nas atualizações seguintes, mantém os dados antigos até os novos chegarem.
-      if (!cardsContainer.children.length) {
-        estacoes.forEach(estacao => cardsContainer.appendChild(cardCarregando(estacao)));
-      }
-
-      // Cada card é substituído assim que sua estação responde (sem esperar as demais)
-      const resultados = await Promise.all(estacoes.map(async (estacao, i) => {
-        const { card, ok } = await fetchDados(estacao);
-        const antigo = cardsContainer.children[i];
-        if (antigo) cardsContainer.replaceChild(card, antigo);
-        else cardsContainer.appendChild(card);
-        return ok;
+        render();
+        renderResumo();
       }));
 
-      const falhas = resultados.filter(ok => !ok).length;
-      msgErro.style.display = falhas === estacoes.length ? 'block' : 'none';
-
-      const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      msgAtualizacao.textContent = falhas && falhas < estacoes.length
-        ? `Atualizado às ${agora} · ${falhas} estação(ões) sem dados · atualiza a cada 15 min`
-        : `Atualizado às ${agora} · atualiza a cada 15 min`;
-
-      atualizando = false;
+      const falhas = Object.keys(estado.erros).length;
+      const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      $("status-geral").textContent = `Atualizado às ${hora}${falhas ? ` · ${falhas} fonte(s) indisponível(is)` : ""} · atualiza a cada 5 minutos`;
+      $("botao-atualizar").disabled = false;
+      carregando = false;
     }
 
-    carregarEstacoes();
+    $("botao-atualizar").addEventListener("click", carregarTudo);
+    $("busca").addEventListener("input", renderTabela);
+    $("filtro-bacia").addEventListener("change", renderTabela);
+    $("ordem").addEventListener("change", renderTabela);
 
-    // Atualização automática de estações e alertas
-    setInterval(() => {
-      carregarEstacoes();
-      carregarAlertasINMET();
-    }, INTERVALO_ATUALIZACAO_MS);
+    carregarTudo();
+    setInterval(carregarTudo, INTERVALO_MS);
 
-    // Ao voltar para a aba depois de muito tempo, atualiza na hora
     let ultimaVisita = Date.now();
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && Date.now() - ultimaVisita > INTERVALO_ATUALIZACAO_MS) {
-        carregarEstacoes();
-        carregarAlertasINMET();
-      }
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && Date.now() - ultimaVisita > INTERVALO_MS) carregarTudo();
       ultimaVisita = Date.now();
     });
-
-  function getDirecaoVento(deg) {
-  if (deg === null || deg === undefined) return "";
-  const direcoes = ["N", "NNE", "NE", "ENE", "L", "LSE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
-  const index = Math.round(deg / 22.5) % 16;
-  return direcoes[index];
-}
-</script>
+  </script>
 </body>
 </html>

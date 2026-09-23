@@ -1,0 +1,6 @@
+{
+  "name": "painel-enchentes-rs",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" }
+}
