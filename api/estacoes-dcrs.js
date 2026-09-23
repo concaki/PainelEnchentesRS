@@ -1,6 +1,6 @@
 // Rede Hidrometeorológica da Defesa Civil RS (API GraphQL, dados via MKS).
 // Documentação: https://sistemas.defesacivil.rs.gov.br/api-redehidrometeorologica
-import { fetchComTimeout, enviarJson, numeroOuNulo } from "./_util.js";
+import { fetchComTimeout, descreverErro, enviarJson, numeroOuNulo } from "./_util.js";
 
 const ENDPOINT = "https://redehidrometeorologica.defesacivil.rs.gov.br/graphql";
 const CLIENT = "casa-militar-defesa-civil-rs";
@@ -64,14 +64,16 @@ export default async function handler(req, res) {
   try {
     base = await consultar(QUERY_BASE);
   } catch (err) {
-    return enviarJson(res, 502, { erro: `Falha ao consultar a Defesa Civil RS: ${err.message}` });
+    console.error(err);
+    return enviarJson(res, 502, { erro: `Falha ao consultar a Defesa Civil RS: ${descreverErro(err)}` });
   }
 
   const extras = new Map();
   try {
     for (const e of await consultar(QUERY_EXTRA)) extras.set(e.codigo, e);
   } catch (err) {
-    avisos.push(`Dados de clima indisponíveis: ${err.message}`);
+    console.error(err);
+    avisos.push(`Dados de clima indisponíveis: ${descreverErro(err)}`);
   }
 
   const agora = Date.now();

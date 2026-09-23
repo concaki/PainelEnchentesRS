@@ -1,5 +1,5 @@
 // Avisos meteorológicos ativos do INMET, filtrados para o RS.
-import { fetchComTimeout, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
+import { fetchComTimeout, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const API = "https://apiprevmet3.inmet.gov.br/avisos/ativos";
 
@@ -44,6 +44,7 @@ export default async function handler(req, res) {
     const alertas = interpretarInmet(await r.json());
     enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), alertas }, 300);
   } catch (err) {
-    enviarJson(res, 502, { erro: `Falha ao consultar o INMET: ${err.message}` });
+    console.error(err);
+    enviarJson(res, 502, { erro: `Falha ao consultar o INMET: ${descreverErro(err)}` });
   }
 }

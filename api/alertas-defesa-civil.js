@@ -1,6 +1,6 @@
 // Alertas da Defesa Civil publicados na IDAP (Interface de Divulgação de Alertas Públicos - MIDR),
 // no formato CAP. São os mesmos alertas enviados por SMS 40199, WhatsApp, Telegram e Cell Broadcast.
-import { fetchComTimeout, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
+import { fetchComTimeout, descreverErro, enviarJson, IBGE_PORTO_ALEGRE } from "./_util.js";
 
 const FEED = "https://idapfile.mdr.gov.br/idap/api/rss/cap";
 
@@ -103,6 +103,7 @@ export default async function handler(req, res) {
     const alertas = interpretarAlertas(await r.text());
     enviarJson(res, 200, { atualizadoEm: new Date().toISOString(), alertas }, 120);
   } catch (err) {
-    enviarJson(res, 502, { erro: `Falha ao consultar a IDAP: ${err.message}` });
+    console.error(err);
+    enviarJson(res, 502, { erro: `Falha ao consultar a IDAP: ${descreverErro(err)}` });
   }
 }

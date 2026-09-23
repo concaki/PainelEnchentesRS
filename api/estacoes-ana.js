@@ -1,5 +1,5 @@
 // Estações telemétricas da ANA/SGB (HidroWeb/SNIRH) com cota de inundação conhecida.
-import { fetchComTimeout, enviarJson } from "./_util.js";
+import { fetchComTimeout, descreverErro, enviarJson } from "./_util.js";
 
 // cota: cota de inundação em metros (null = sem cota oficial).
 // Conferidas com nivelguaiba.com.br: São Leopoldo, Feliz, Gravataí, Muçum, Lajeado e Dona Francisca.
@@ -57,7 +57,8 @@ async function buscarEstacao(est) {
       dataLeitura: serie[0]?.data ?? null,
     };
   } catch (err) {
-    return { ...est, ok: false, erro: err.message };
+    console.error(err);
+    return { ...est, ok: false, erro: descreverErro(err) };
   }
 }
 
